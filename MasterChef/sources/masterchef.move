@@ -68,11 +68,10 @@ module MasterChefDeployer::MasterChef {
         burn_percent: u64,
         pending_burn_reward_token_amount: u64,
         farming_percent: u64,
-        bonus_multiplier: u64,
         total_alloc_point: u128,
         per_second_reward: u128,
         start_timestamp: u64,
-        last_timestamp_mint: u64,
+        last_mint_timestamp: u64,
         last_timestamp_dev_withdraw: u64,
     }
 
@@ -118,11 +117,10 @@ module MasterChefDeployer::MasterChef {
             burn_percent: 100,
             pending_burn_reward_token_amount: 0,
             farming_percent: 800,
-            bonus_multiplier: 1,
             total_alloc_point: 0,
             per_second_reward: 30000000,
             start_timestamp: current_timestamp,
-            last_timestamp_mint: current_timestamp,
+            last_mint_timestamp: current_timestamp,
             last_timestamp_dev_withdraw: current_timestamp,
         });
         move_to(admin, LPInfo {
@@ -254,16 +252,6 @@ module MasterChefDeployer::MasterChef {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
         masterchef_data.per_second_reward = per_second_reward;
-    }
-
-    /// Set bonus
-    public entry fun set_bonus_multiplier(
-        admin: &signer,
-        bonus_multiplier: u64
-    ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.bonus_multiplier = bonus_multiplier;
     }
 
     /// Add a new pool
@@ -539,17 +527,17 @@ module MasterChefDeployer::MasterChef {
     }
 
     /// Mint the reward token
-    public fun mint_reward_token() acquires MasterChefData {
+    fun mint_reward_token() acquires MasterChefData {
         let resource_account_signer = get_resource_account_signer();
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         let current_timestamp = timestamp::now_seconds();
-        let new_mint_amount = (masterchef_data.per_second_reward as u64) * (current_timestamp - masterchef_data.last_timestamp_mint);
+        let new_mint_amount = (masterchef_data.per_second_reward as u64) * (current_timestamp - masterchef_data.last_mint_timestamp);
         
         masterchef_data.pending_team_reward_token_amount = masterchef_data.pending_team_reward_token_amount + new_mint_amount * masterchef_data.team_percent / PERCENT_PRECISION;
         masterchef_data.pending_burn_reward_token_amount = masterchef_data.pending_burn_reward_token_amount + new_mint_amount * masterchef_data.burn_percent / PERCENT_PRECISION;
         masterchef_data.pending_lottery_reward_token_amount = masterchef_data.pending_lottery_reward_token_amount + new_mint_amount * masterchef_data.lottery_percent / PERCENT_PRECISION;
         masterchef_data.pending_marketing_reward_token_amount = masterchef_data.pending_marketing_reward_token_amount + new_mint_amount * masterchef_data.marketing_percent / PERCENT_PRECISION;
-        masterchef_data.last_timestamp_mint = current_timestamp;
+        masterchef_data.last_mint_timestamp = current_timestamp;
         
         MosquitoCoin::mint_SUCKR(&resource_account_signer, new_mint_amount);
     }
