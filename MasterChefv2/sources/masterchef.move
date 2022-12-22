@@ -1,13 +1,11 @@
 module MasterChefDeployer::MasterChef {
+    use MasterChefDeployer::MosquitoCoin::{ Self, SUCKR };
     use std::signer;
     use std::vector;
     use std::event;
-    use std::string::utf8;
     use std::type_info::{ Self, TypeInfo };
     use aptos_framework::timestamp;
-    use aptos_framework::coin::{
-        Self, MintCapability, FreezeCapability, BurnCapability
-    };
+    use aptos_framework::coin::{ Self };
     use aptos_framework::account::{ Self, SignerCapability };
 
     /// When already exists on account
@@ -27,17 +25,10 @@ module MasterChefDeployer::MasterChef {
     const PERCENT_PRECISION: u64 = 1000;
     const INIT_SUPPLY:u64 = 10000000000000;
     const ACC_REWARD_PRECISION: u128 = 100000000;
+    const REWARD_TOKEN_RATE_LIMIT: u128 = 100000000;
 
     const DEPLOYER_ADDRESS: address = @MasterChefDeployer;
     const RESOURCE_ACCOUNT_ADDRESS: address = @ResourceAccountDeployer;
-
-    /// Store min/burn/freeze capabilities for reward token under user account
-    struct Caps<phantom CoinType> has key {
-        direct_mint: bool,
-        mint: MintCapability<CoinType>,
-        freeze: FreezeCapability<CoinType>,
-        burn: BurnCapability<CoinType>,
-    }
 
     /// Store staked LP info under masterchef
     struct LPInfo has key {
@@ -80,11 +71,10 @@ module MasterChefDeployer::MasterChef {
         burn_percent: u64,
         pending_burn_reward_token_amount: u64,
         farming_percent: u64,
-        bonus_multiplier: u64,
         total_alloc_point: u128,
         per_second_reward: u128,
         start_timestamp: u64,
-        last_timestamp_mint: u64,
+        last_mint_timestamp: u64,
         last_timestamp_dev_withdraw: u64,
     }
 
@@ -104,32 +94,15 @@ module MasterChefDeployer::MasterChef {
         amount: u64,
     }
 
-    /// Reward coin structure
-    struct MosquitoCoin {}
-
     public entry fun initialize(admin: &signer) {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
         // let current_timestamp = 0;
-        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MosquitoCoin>(
-            admin,
-            utf8(b"MFI"),
-            utf8(b"MFI"),
-            8,
-            true,
-        );
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
         let resource_account_signer = account::create_signer_with_capability(&signer_cap);
-        let coin_init_supply = coin::mint<MosquitoCoin>(INIT_SUPPLY, &mint_cap);
-        coin::register<MosquitoCoin>(&resource_account_signer);
-        coin::deposit(signer::address_of(&resource_account_signer), coin_init_supply);
+        
+        MosquitoCoin::mint_SUCKR(&resource_account_signer, INIT_SUPPLY);
 
-        move_to(admin, Caps<MosquitoCoin> {
-            direct_mint: true,
-            mint: mint_cap,
-            burn: burn_cap,
-            freeze: freeze_cap,
-        });
         move_to(admin, MasterChefData {
             signer_cap: signer_cap,
             admin_address: admin_addr,
@@ -147,11 +120,10 @@ module MasterChefDeployer::MasterChef {
             burn_percent: 100,
             pending_burn_reward_token_amount: 0,
             farming_percent: 800,
-            bonus_multiplier: 1,
             total_alloc_point: 0,
             per_second_reward: 30000000,
             start_timestamp: current_timestamp,
-            last_timestamp_mint: current_timestamp,
+            last_mint_timestamp: current_timestamp,
             last_timestamp_dev_withdraw: current_timestamp,
         });
         move_to(admin, LPInfo {
@@ -172,7 +144,7 @@ module MasterChefDeployer::MasterChef {
     }
 
     /// return resource account signer
-    fun get_resource_account_signer(): signer acquires MasterChefData {
+    public fun get_resource_account_signer(): signer acquires MasterChefData {
         let signer_cap = &borrow_global<MasterChefData>(DEPLOYER_ADDRESS).signer_cap;
         account::create_signer_with_capability(signer_cap)
     }
@@ -282,17 +254,11 @@ module MasterChefDeployer::MasterChef {
     ) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.per_second_reward = per_second_reward;
-    }
-
-    /// Set bonus
-    public entry fun set_bonus_multiplier(
-        admin: &signer,
-        bonus_multiplier: u64
-    ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.bonus_multiplier = bonus_multiplier;
+        masterchef_data.per_second_reward = if (REWARD_TOKEN_RATE_LIMIT > per_second_reward) {
+            per_second_reward
+        } else {
+            REWARD_TOKEN_RATE_LIMIT
+        };
     }
 
     /// Add a new pool
@@ -310,11 +276,15 @@ module MasterChefDeployer::MasterChef {
         assert!(!exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_ALREADY_EXIST);
 
         let current_timestamp = timestamp::now_seconds();
-        // let current_timestamp = 0;
+        let pool_fee = if (FEE_LIMIT > fee) {
+            fee
+        } else {
+            FEE_LIMIT
+        };
         masterchef_data.total_alloc_point = masterchef_data.total_alloc_point + alloc_point;
         coin::register<CoinType>(&resource_account_signer);
         move_to(&resource_account_signer, PoolInfo<CoinType> {
-            fee: fee,
+            fee: pool_fee,
             multiplier: multiplier,
             total_real_share: 0,
             total_boosted_share: 0,
@@ -370,11 +340,11 @@ module MasterChefDeployer::MasterChef {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(team_account) == masterchef_data.team_address, ERR_FORBIDDEN);
 
-        let coins_out = coin::withdraw<MosquitoCoin>(&resource_account_signer, masterchef_data.pending_team_reward_token_amount);
-        if (!coin::is_account_registered<MosquitoCoin>(signer::address_of(team_account))) {
-            coin::register<MosquitoCoin>(team_account);
+        let coins_out = coin::withdraw<SUCKR>(&resource_account_signer, masterchef_data.pending_team_reward_token_amount);
+        if (!coin::is_account_registered<SUCKR>(signer::address_of(team_account))) {
+            coin::register<SUCKR>(team_account);
         };
-        coin::deposit<MosquitoCoin>(signer::address_of(team_account), coins_out);
+        coin::deposit<SUCKR>(signer::address_of(team_account), coins_out);
         masterchef_data.pending_team_reward_token_amount = 0;
     }
 
@@ -384,11 +354,11 @@ module MasterChefDeployer::MasterChef {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(marketing_account) == masterchef_data.marketing_address, ERR_FORBIDDEN);
 
-        let coins_out = coin::withdraw<MosquitoCoin>(&resource_account_signer, masterchef_data.pending_marketing_reward_token_amount);
-        if (!coin::is_account_registered<MosquitoCoin>(signer::address_of(marketing_account))) {
-            coin::register<MosquitoCoin>(marketing_account);
+        let coins_out = coin::withdraw<SUCKR>(&resource_account_signer, masterchef_data.pending_marketing_reward_token_amount);
+        if (!coin::is_account_registered<SUCKR>(signer::address_of(marketing_account))) {
+            coin::register<SUCKR>(marketing_account);
         };
-        coin::deposit<MosquitoCoin>(signer::address_of(marketing_account), coins_out);
+        coin::deposit<SUCKR>(signer::address_of(marketing_account), coins_out);
         masterchef_data.pending_marketing_reward_token_amount = 0;
     }
 
@@ -398,11 +368,11 @@ module MasterChefDeployer::MasterChef {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(lottery_account) == masterchef_data.lottery_address, ERR_FORBIDDEN);
 
-        let coins_out = coin::withdraw<MosquitoCoin>(&resource_account_signer, masterchef_data.pending_lottery_reward_token_amount);
-        if (!coin::is_account_registered<MosquitoCoin>(signer::address_of(lottery_account))) {
-            coin::register<MosquitoCoin>(lottery_account);
+        let coins_out = coin::withdraw<SUCKR>(&resource_account_signer, masterchef_data.pending_lottery_reward_token_amount);
+        if (!coin::is_account_registered<SUCKR>(signer::address_of(lottery_account))) {
+            coin::register<SUCKR>(lottery_account);
         };
-        coin::deposit<MosquitoCoin>(signer::address_of(lottery_account), coins_out);
+        coin::deposit<SUCKR>(signer::address_of(lottery_account), coins_out);
         masterchef_data.pending_lottery_reward_token_amount = 0;
     }
 
@@ -412,11 +382,11 @@ module MasterChefDeployer::MasterChef {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(burn_account) == masterchef_data.burn_address, ERR_FORBIDDEN);
 
-        let coins_out = coin::withdraw<MosquitoCoin>(&resource_account_signer, masterchef_data.pending_burn_reward_token_amount);
-        if (!coin::is_account_registered<MosquitoCoin>(signer::address_of(burn_account))) {
-            coin::register<MosquitoCoin>(burn_account);
+        let coins_out = coin::withdraw<SUCKR>(&resource_account_signer, masterchef_data.pending_burn_reward_token_amount);
+        if (!coin::is_account_registered<SUCKR>(signer::address_of(burn_account))) {
+            coin::register<SUCKR>(burn_account);
         };
-        coin::deposit<MosquitoCoin>(signer::address_of(burn_account), coins_out);
+        coin::deposit<SUCKR>(signer::address_of(burn_account), coins_out);
         masterchef_data.pending_burn_reward_token_amount = 0;
     }
 
@@ -425,7 +395,7 @@ module MasterChefDeployer::MasterChef {
     public entry fun deposit<CoinType>(
         user_account: &signer,
         amount: u64
-    ) acquires MasterChefData, UserInfo, PoolInfo, Caps, Events {
+    ) acquires MasterChefData, UserInfo, PoolInfo, Events {
         update_pool<CoinType>();
         mint_reward_token();
         let resource_account_signer = get_resource_account_signer();
@@ -472,7 +442,7 @@ module MasterChefDeployer::MasterChef {
     public entry fun withdraw<CoinType>(
         user_account: &signer,
         amount_out: u64
-    ) acquires MasterChefData, UserInfo, PoolInfo, Caps, Events {
+    ) acquires MasterChefData, UserInfo, PoolInfo, Events {
         update_pool<CoinType>();
         mint_reward_token();
         settle_pending_reward<CoinType>(user_account);
@@ -562,13 +532,13 @@ module MasterChefDeployer::MasterChef {
                 let multiplier = get_boost_multiplier(pool_info.multiplier);
                 let pending_amount = (user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION;
                 pending_amount = pending_amount * multiplier / (PERCENT_PRECISION as u128);
-                if (pending_amount > user_info.reward_debt && coin::balance<MosquitoCoin>(RESOURCE_ACCOUNT_ADDRESS) >= (pending_amount as u64)) {
+                if (pending_amount > user_info.reward_debt && coin::balance<SUCKR>(RESOURCE_ACCOUNT_ADDRESS) >= (pending_amount as u64)) {
                     pending_amount = pending_amount - user_info.reward_debt;
                     let resource_account_signer = get_resource_account_signer();
-                    let coins_out = coin::withdraw<MosquitoCoin>(&resource_account_signer, (pending_amount as u64));
+                    let coins_out = coin::withdraw<SUCKR>(&resource_account_signer, (pending_amount as u64));
                     
-                    if (!coin::is_account_registered<MosquitoCoin>(user_addr)) {
-                        coin::register<MosquitoCoin>(user_account);
+                    if (!coin::is_account_registered<SUCKR>(user_addr)) {
+                        coin::register<SUCKR>(user_account);
                     };
                     coin::deposit(user_addr, coins_out);
                     user_info.paid_reward_token_amount = user_info.paid_reward_token_amount + pending_amount;
@@ -579,37 +549,18 @@ module MasterChefDeployer::MasterChef {
     }
 
     /// Mint the reward token
-    public fun mint_reward_token() acquires MasterChefData, Caps {
+    fun mint_reward_token() acquires MasterChefData {
+        let resource_account_signer = get_resource_account_signer();
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        let caps = borrow_global<Caps<MosquitoCoin>>(DEPLOYER_ADDRESS);
         let current_timestamp = timestamp::now_seconds();
-        let new_mint_amount = (masterchef_data.per_second_reward as u64) * (current_timestamp - masterchef_data.last_timestamp_mint);
+        let new_mint_amount = (masterchef_data.per_second_reward as u64) * (current_timestamp - masterchef_data.last_mint_timestamp);
         
         masterchef_data.pending_team_reward_token_amount = masterchef_data.pending_team_reward_token_amount + new_mint_amount * masterchef_data.team_percent / PERCENT_PRECISION;
-        // masterchef_data.pending_burn_reward_token_amount = masterchef_data.pending_burn_reward_token_amount + new_mint_amount * masterchef_data.burn_percent / PERCENT_PRECISION;
+        masterchef_data.pending_burn_reward_token_amount = masterchef_data.pending_burn_reward_token_amount + new_mint_amount * masterchef_data.burn_percent / PERCENT_PRECISION;
         masterchef_data.pending_lottery_reward_token_amount = masterchef_data.pending_lottery_reward_token_amount + new_mint_amount * masterchef_data.lottery_percent / PERCENT_PRECISION;
         masterchef_data.pending_marketing_reward_token_amount = masterchef_data.pending_marketing_reward_token_amount + new_mint_amount * masterchef_data.marketing_percent / PERCENT_PRECISION;
-        masterchef_data.last_timestamp_mint = current_timestamp;
+        masterchef_data.last_mint_timestamp = current_timestamp;
         
-        let amount_for_burn = new_mint_amount * masterchef_data.burn_percent / PERCENT_PRECISION;
-        let amount_for_farming = new_mint_amount * masterchef_data.farming_percent / PERCENT_PRECISION;
-        // let new_coins_for_burn = coin::mint<MosquitoCoin>(amount_for_burn, &caps.mint);
-        let new_coins_for_farming = coin::mint<MosquitoCoin>(amount_for_farming, &caps.mint);
-        let new_coins_for_rest = coin::mint<MosquitoCoin>(new_mint_amount - amount_for_farming - amount_for_burn, &caps.mint);
-        coin::deposit(RESOURCE_ACCOUNT_ADDRESS, new_coins_for_farming);
-        coin::deposit(RESOURCE_ACCOUNT_ADDRESS, new_coins_for_rest);
-    }
-
-    /// Burn the reward token
-    public entry fun burn_reward_token(
-        user_account: &signer,
-        amount: u64
-    ) acquires MasterChefData, Caps {
-        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(user_account) == masterchef_data.burn_address, ERR_FORBIDDEN);
-
-        let caps = borrow_global<Caps<MosquitoCoin>>(DEPLOYER_ADDRESS);
-        let burn_coins = coin::withdraw<MosquitoCoin>(user_account, amount);
-        coin::burn<MosquitoCoin>(burn_coins, &caps.burn);
+        MosquitoCoin::mint_SUCKR(&resource_account_signer, new_mint_amount);
     }
 }
