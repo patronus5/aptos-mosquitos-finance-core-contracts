@@ -1,0 +1,17 @@
+---
+profiles:
+  default:
+    private_key: "0xdeba0154ea15629e3dea99de5bf19e4ce4c81bbc073e12e296ec22116e1a673c"
+    public_key: "0xe0191d98156e7f00d58e717833d160cc2c9e6ba73b2f06f6282d40b7ae703401"
+    account: f93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  someone:
+    private_key: "0x28656bb68a5ce3ef248bb994b6bf31f63fb16c55686ee28d6bef7cf7e88ab712"
+    public_key: "0x09226ac56446ce2289515d91bb746f77f650eb7576cdff2073586189a234981b"
+    account: a862d16b7b6ca6e8856622377ebe5da4327130e00303eaeed60edc49c747ff57
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  user:
+    private_key: "0xe948a319e567178325ae7d5e1073b6b8dc40655f8629cd54d6e311081cb317c1"
+    public_key: "0xe2205083c3e35fbdd4800458d5eb4f53bd57bd38e7a3324134ecb7b2724180b5"
+    account: 4dc63d9001a1fab77bcdb6d7a7e7a4effe0e5c83fbb38fe5054f92fa3f8b734f
+    rest_url: "https://fullnode.testnet.aptoslabs.com"

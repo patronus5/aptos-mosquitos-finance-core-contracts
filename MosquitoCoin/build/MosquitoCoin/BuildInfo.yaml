@@ -1,0 +1,29 @@
+---
+compiled_package_info:
+  package_name: MosquitoCoin
+  address_alias_instantiation:
+    Extensions: "0000000000000000000000000000000000000000000000000000000000000001"
+    MasterChefDeployer: f93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc
+    ResourceAccountDeployer: ff8b89aa3b4058c38ba0ee56212c4edf8c3a47edb712edc61dedc6fb95e466bb
+    aptos_framework: "0000000000000000000000000000000000000000000000000000000000000001"
+    aptos_std: "0000000000000000000000000000000000000000000000000000000000000001"
+    aptos_token: "0000000000000000000000000000000000000000000000000000000000000003"
+    core_resources: 000000000000000000000000000000000000000000000000000000000a550c18
+    std: "0000000000000000000000000000000000000000000000000000000000000001"
+    vm_reserved: "0000000000000000000000000000000000000000000000000000000000000000"
+  source_digest: 80D64C9FBE32DBBE6D0A179706534CD4FB93E5CF53060FEB55BAB1681C9C8B88
+  build_flags:
+    dev_mode: true
+    test_mode: true
+    generate_docs: false
+    generate_abis: false
+    install_dir: ~
+    force_recompilation: false
+    additional_named_addresses: {}
+    architecture: ~
+    fetch_deps_only: false
+    fetch_latest_git_deps: false
+dependencies:
+  - AptosFramework
+  - AptosStdlib
+  - MoveStdlib

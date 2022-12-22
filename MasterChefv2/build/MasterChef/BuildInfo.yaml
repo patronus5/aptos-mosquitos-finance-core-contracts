@@ -1,0 +1,29 @@
+---
+compiled_package_info:
+  package_name: MasterChef
+  address_alias_instantiation:
+    Extensions: "0000000000000000000000000000000000000000000000000000000000000001"
+    MasterChefDeployer: f93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc
+    ResourceAccountDeployer: ff8b89aa3b4058c38ba0ee56212c4edf8c3a47edb712edc61dedc6fb95e466bb
+    aptos_framework: "0000000000000000000000000000000000000000000000000000000000000001"
+    aptos_std: "0000000000000000000000000000000000000000000000000000000000000001"
+    aptos_token: "0000000000000000000000000000000000000000000000000000000000000003"
+    core_resources: 000000000000000000000000000000000000000000000000000000000a550c18
+    std: "0000000000000000000000000000000000000000000000000000000000000001"
+    vm_reserved: "0000000000000000000000000000000000000000000000000000000000000000"
+  source_digest: DB65556AE9F892D846A78D6BAEF15D960B52922A57FE9C20268677EADDDD478E
+  build_flags:
+    dev_mode: false
+    test_mode: false
+    generate_docs: false
+    generate_abis: false
+    install_dir: ~
+    force_recompilation: false
+    additional_named_addresses: {}
+    architecture: ~
+    fetch_deps_only: false
+    fetch_latest_git_deps: false
+dependencies:
+  - AptosFramework
+  - AptosStdlib
+  - MoveStdlib
