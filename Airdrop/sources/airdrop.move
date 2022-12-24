@@ -54,6 +54,15 @@ module AirdropDeployer::Airdrop {
         });
     }
 
+    public entry fun set_admin_address(
+        admin: &signer,
+        new_addr: address
+    ) acquires Airdrop {
+        let airdrop_data = borrow_global_mut<Airdrop>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == airdrop_data.admin_address, ERR_FORBIDDEN);
+        airdrop_data.admin_address = new_addr;
+    }
+
     public entry fun start_airdrop(
         admin: &signer,
         end_timestamp: u64

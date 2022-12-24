@@ -70,7 +70,7 @@ module MasterChefDeployer::MosquitoCoin {
         let admin_addr = signer::address_of(admin);
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<SUCKR>(
             admin,
-            utf8(b"FIY"),
+            utf8(b"FIY Coin"),
             utf8(b"FIY"),
             8,
             true,
@@ -104,6 +104,13 @@ module MasterChefDeployer::MosquitoCoin {
             coins: coin::zero(),
             vec: vector::empty(),
         })
+    }
+
+    // Set admin address
+    public entry fun set_admin_address(admin: &signer, addr: address) acquires Caps {
+        let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == caps.admin_address, ERR_FORBIDDEN);
+        caps.admin_address = addr;
     }
 
     // Set airdrop address for withdrawing the SUCKR token
