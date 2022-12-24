@@ -4,7 +4,7 @@ module AirdropDeployer::Airdrop {
     use std::event;
     use std::vector;
     use std::simple_map::{ Self, SimpleMap };
-    // use aptos_framework::timestamp;
+    use aptos_framework::timestamp;
     use aptos_framework::account;
     use aptos_framework::coin::{ Self, Coin };
 
@@ -14,15 +14,25 @@ module AirdropDeployer::Airdrop {
     const ERR_FORBIDDEN: u64 = 106;
     /// When user is not in whitelist
     const ERR_NOT_EXIST: u64 = 107;
+    /// When airdrop is not started 
+    const ERR_NOT_STARTED: u64 = 108;
+    /// When airdrop is ended 
+    const ERR_AIRDROP_ENDED: u64 = 109;
+    /// When airdrop is already started 
+    const ERR_ALREADY_STARTED: u64 = 110;
+    /// When the value is less than certain value
+    const ERR_MUST_BE_GREATER: u64 = 111;
 
     const DEPLOYER_ADDRESS: address = @AirdropDeployer;
 
     // struct SUCKR {}
 
     struct Airdrop has key {
+        is_started: bool,
         admin_address: address,
         map: SimpleMap<address, u64>,
         treasury: Coin<SUCKR>,
+        end_timestamp: u64,
         claim_airdrop_event: event::EventHandle<ClaimAirdropEvent>,
     }
 
@@ -35,11 +45,26 @@ module AirdropDeployer::Airdrop {
         let total_amount = coin::balance<SUCKR>(signer::address_of(admin));
         let coins = coin::withdraw<SUCKR>(admin, total_amount);
         move_to(admin, Airdrop {
+            is_started: false,
             admin_address: signer::address_of(admin),
             map: simple_map::create<address, u64>(),
             treasury: coins,
+            end_timestamp: 0,
             claim_airdrop_event: account::new_event_handle<ClaimAirdropEvent>(admin),
         });
+    }
+
+    public entry fun start_airdrop(
+        admin: &signer,
+        end_timestamp: u64
+    ) acquires Airdrop {
+        let airdrop_data = borrow_global_mut<Airdrop>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        assert!(signer::address_of(admin) == airdrop_data.admin_address, ERR_FORBIDDEN);
+        assert!(airdrop_data.is_started == false, ERR_ALREADY_STARTED);
+        assert!(current_timestamp < end_timestamp, ERR_MUST_BE_GREATER);
+        airdrop_data.is_started = true;
+        airdrop_data.end_timestamp = end_timestamp;
     }
 
     public entry fun add_airdrop_list(
@@ -71,8 +96,12 @@ module AirdropDeployer::Airdrop {
 
     public entry fun claim_airdrop(account: &signer) acquires Airdrop {
         let airdrop_data = borrow_global_mut<Airdrop>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
         let user_addr = signer::address_of(account);
+        assert!(airdrop_data.is_started == true, ERR_NOT_STARTED);
+        assert!(airdrop_data.end_timestamp >= current_timestamp, ERR_AIRDROP_ENDED);
         assert!(simple_map::contains_key<address, u64>(&airdrop_data.map, &user_addr), ERR_NOT_EXIST);
+        
         let amount = *(simple_map::borrow<address, u64>(&airdrop_data.map, &user_addr));
         let total_amount = (coin::value(&airdrop_data.treasury) as u64);
         assert!(total_amount >= amount, ERR_INSUFFICIENT_BALANCE);
@@ -90,7 +119,11 @@ module AirdropDeployer::Airdrop {
 
     public entry fun burn_unclaimed_airdrop(admin: &signer) acquires Airdrop {
         let airdrop_data = borrow_global_mut<Airdrop>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        assert!(airdrop_data.is_started == true, ERR_NOT_STARTED);
+        assert!(airdrop_data.end_timestamp < current_timestamp, ERR_AIRDROP_ENDED);
         assert!(signer::address_of(admin) == airdrop_data.admin_address, ERR_FORBIDDEN);
+        
         let amount = (coin::value(&airdrop_data.treasury) as u64);
         let coins = coin::extract(&mut airdrop_data.treasury, amount);
         coin::deposit(signer::address_of(admin), coins);
