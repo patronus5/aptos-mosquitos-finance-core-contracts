@@ -20,7 +20,7 @@ module MasterChefDeployer::MasterChefTests {
     #[test_only]
     use MasterChefDeployer::MasterChef;
     #[test_only]
-    use MasterChefDeployer::MosquitoCoin::{ Self, SUCKR };
+    use MasterChefDeployer::MosquitoCoin::{ Self };
 
     #[test_only]
     const INIT_FAUCET_COIN:u64 = 1000000000;
@@ -52,8 +52,9 @@ module MasterChefDeployer::MasterChefTests {
     }
 
     #[test_only]
-    public entry fun test_coin_init(admin: &signer, someone: &signer) {
+    public entry fun test_coin_init(admin: &signer, someone: &signer, dev: &signer) {
         // genesis::setup();
+        create_account_for_test(signer::address_of(dev));
         create_account_for_test(signer::address_of(someone));
         {
             let (burn_cap, freeze_cap, mint_cap) = coin::initialize<BTC>(
@@ -67,7 +68,7 @@ module MasterChefDeployer::MasterChefTests {
             let coins = coin::mint<BTC>(INIT_FAUCET_COIN, &mint_cap);
             coin::deposit(signer::address_of(someone), coins);
     
-            MasterChef::add<BTC>(admin, 30, 1, 20);
+            MasterChef::add<BTC>(admin, 30, 1, 50);
             MasterChef::add<USDT>(admin, 50, 1, 15);
             move_to(admin, Caps<BTC> {
                 mint: mint_cap,
@@ -83,11 +84,19 @@ module MasterChefDeployer::MasterChefTests {
         MasterChef::set_admin_address(admin, signer::address_of(another));
     }
 
-    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x15)]
-    public entry fun test_deposit_and_withdraw(admin: &signer, resource_account: &signer, someone: &signer) {
+    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x15, dev = @0x12)]
+    public entry fun test_deposit_and_withdraw(
+        admin: &signer,
+        resource_account: &signer,
+        someone: &signer,
+        dev: &signer,
+    ) {
         test_module_init(admin);
-        test_coin_init(admin, someone);
+        test_coin_init(admin, someone, dev);
 
+        coin::register<BTC>(resource_account);
+
+        // deposit
         let pre_user_balance = coin::balance<BTC>(signer::address_of(someone));
         debug::print(&pre_user_balance);
         MasterChef::deposit<BTC>(someone, 50);
@@ -95,15 +104,15 @@ module MasterChefDeployer::MasterChefTests {
         debug::print(&cur_user_balance);
         let btc_pool_balance = coin::balance<BTC>(signer::address_of(resource_account));
         debug::print(&btc_pool_balance);
-        let tc_balance = coin::balance<SUCKR>(signer::address_of(resource_account));
-        debug::print(&tc_balance);
 
-        // MasterChef::withdraw<BTC>(someone, 27);
-        // cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
-        // debug::print(&cur_user_balance);
-        // btc_pool_balance = coin::balance<BTC>(signer::address_of(resource_account));
-        // debug::print(&btc_pool_balance);
-        // btc_pool_TC_balance = coin::balance<SUCKR>(signer::address_of(resource_account));
-        // debug::print(&btc_pool_TC_balance);
+        // withdraw
+        MasterChef::emergency_withdraw<BTC>(someone);
+        let cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
+        debug::print(&cur_user_balance);
+
+        // MasterChef::set_dev_address(admin, signer::address_of(dev));
+        // MasterChef::withdraw_dev_fee<BTC>(dev);
+        // let dev_balance = coin::balance<BTC>(signer::address_of(dev));
+        // debug::print(&dev_balance);
     }
 }
