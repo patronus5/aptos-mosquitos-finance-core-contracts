@@ -1,5 +1,5 @@
 #[test_only]
-module MasterChefDeployer::MasterChefTests {
+module MasterChefDeployer::AirdropTests {
     #[test_only]
     use std::signer;
     #[test_only]
