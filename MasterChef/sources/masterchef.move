@@ -22,7 +22,7 @@ module MasterChefDeployer::MasterChef {
     const ERR_FORBIDDEN: u64 = 106;
 
     const PERCENT_PRECISION: u64 = 1000;
-    const INIT_SUPPLY:u64 = 10000000000000;
+    // const INIT_SUPPLY:u64 = 10000000000000;
     const ACC_REWARD_PRECISION: u128 = 100000000;
 
     const DEPLOYER_ADDRESS: address = @MasterChefDeployer;
@@ -98,7 +98,7 @@ module MasterChefDeployer::MasterChef {
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
         let resource_account_signer = account::create_signer_with_capability(&signer_cap);
         
-        MosquitoCoin::mint_SUCKR(&resource_account_signer, INIT_SUPPLY);
+        // MosquitoCoin::mint_SUCKR(&resource_account_signer, INIT_SUPPLY);
 
         move_to(admin, MasterChefData {
             signer_cap: signer_cap,
@@ -109,7 +109,7 @@ module MasterChefDeployer::MasterChef {
             pending_team_reward_token_amount: 0,
             marketing_address: admin_addr,
             marketing_percent: 9,
-            pending_marketing_reward_token_amount: INIT_SUPPLY,
+            pending_marketing_reward_token_amount: 0,
             lottery_address: admin_addr,
             lottery_percent: 90,
             pending_lottery_reward_token_amount: 0,
