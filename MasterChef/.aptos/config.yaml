@@ -1,9 +1,14 @@
 ---
 profiles:
-  default:
-    private_key: "0xdeba0154ea15629e3dea99de5bf19e4ce4c81bbc073e12e296ec22116e1a673c"
-    public_key: "0xe0191d98156e7f00d58e717833d160cc2c9e6ba73b2f06f6282d40b7ae703401"
-    account: f93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc
+  airdrop:
+    private_key: "0x30557c95a73729a5df9861d1f9a6cdbbd2041dcd1a7481460812dac05adea8a7"
+    public_key: "0x885897e55a43c468b5bdd760ee13ae01a3817701d019216df3db308687a543df"
+    account: 17dc05f9d264b7f96314f2a83578ef96adba41687fd93895a06d79425cc11bc2
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  masterchef:
+    private_key: "0xad49ce3a515fed4e83713848d1a3d6eb18da80e3ca3604d170024c327d396391"
+    public_key: "0x5d2ed89f291b4e579a61c037d3312dea0f57980040218b565de9795e8015a4eb"
+    account: e9b1f16565baa2bea07af507b4483818cce1d47b0939c32833622dccd4cd14b5
     rest_url: "https://fullnode.testnet.aptoslabs.com"
   someone:
     private_key: "0x28656bb68a5ce3ef248bb994b6bf31f63fb16c55686ee28d6bef7cf7e88ab712"

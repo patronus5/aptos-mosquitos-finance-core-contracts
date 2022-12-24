@@ -93,8 +93,8 @@ module MasterChefDeployer::MasterChef {
 
     public entry fun initialize(admin: &signer) {
         let admin_addr = signer::address_of(admin);
-        let current_timestamp = timestamp::now_seconds();
-        // let current_timestamp = 0;
+        // let current_timestamp = timestamp::now_seconds();
+        let current_timestamp = 0;
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
         let resource_account_signer = account::create_signer_with_capability(&signer_cap);
         
@@ -118,7 +118,7 @@ module MasterChefDeployer::MasterChef {
             pending_burn_reward_token_amount: 0,
             farming_percent: 800,
             total_alloc_point: 0,
-            per_second_reward: 30000000,
+            per_second_reward: 3333333,
             start_timestamp: current_timestamp,
             last_mint_timestamp: current_timestamp,
             last_timestamp_dev_withdraw: current_timestamp,

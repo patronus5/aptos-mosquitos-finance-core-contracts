@@ -63,6 +63,7 @@ module AirdropDeployer::Airdrop {
         assert!(signer::address_of(admin) == airdrop_data.admin_address, ERR_FORBIDDEN);
         assert!(airdrop_data.is_started == false, ERR_ALREADY_STARTED);
         assert!(current_timestamp < end_timestamp, ERR_MUST_BE_GREATER);
+        
         airdrop_data.is_started = true;
         airdrop_data.end_timestamp = end_timestamp;
     }

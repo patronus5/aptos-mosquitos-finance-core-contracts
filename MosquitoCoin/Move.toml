@@ -6,5 +6,5 @@ version = '1.0.0'
 AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "testnet" }
 
 [addresses]
-MasterChefDeployer = "0xf93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc"
-ResourceAccountDeployer = "0xff8b89aa3b4058c38ba0ee56212c4edf8c3a47edb712edc61dedc6fb95e466bb"
+MasterChefDeployer = "0xe9b1f16565baa2bea07af507b4483818cce1d47b0939c32833622dccd4cd14b5"
+ResourceAccountDeployer = "0x95a6bcc7003bd38ea78e3210fe05ccce9b3fccd193c91748299e24ee5039f6c9"
