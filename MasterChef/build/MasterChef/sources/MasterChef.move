@@ -20,6 +20,10 @@ module MasterChefDeployer::MasterChef {
     const ERR_INSUFFICIENT_BALANCE: u64 = 105;
     /// When user is not admin
     const ERR_FORBIDDEN: u64 = 106;
+    /// When farm is not started
+    const ERR_FARM_NOT_STARTED: u64 = 107;
+    /// When farm is already started
+    const ERR_FARM_ALREADY_STARTED: u64 = 108;
 
     const PERCENT_PRECISION: u64 = 1000;
     // const INIT_SUPPLY:u64 = 10000000000000;
@@ -72,7 +76,7 @@ module MasterChefDeployer::MasterChef {
         farming_percent: u64,
         total_alloc_point: u128,
         per_second_reward: u128,
-        start_timestamp: u64,
+        farm_enabled: bool,
         last_mint_timestamp: u64,
         last_timestamp_dev_withdraw: u64,
         treasury: Coin<SUCKR>,
@@ -122,7 +126,7 @@ module MasterChefDeployer::MasterChef {
             farming_percent: 800,
             total_alloc_point: 0,
             per_second_reward: 3333333,
-            start_timestamp: current_timestamp,
+            farm_enabled: false,
             last_mint_timestamp: current_timestamp,
             last_timestamp_dev_withdraw: current_timestamp,
             treasury: coin::zero(),
@@ -189,6 +193,16 @@ module MasterChefDeployer::MasterChef {
     }
 
 /// functions list for only owner ///
+    /// Enable the farm
+    public entry fun enable_farm(admin: &signer) acquires MasterChefData {
+        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
+        assert!(masterchef_data.farm_enabled == false, ERR_FARM_ALREADY_STARTED);
+        let current_timestamp = timestamp::now_seconds();
+        masterchef_data.farm_enabled = true;
+        masterchef_data.last_mint_timestamp = current_timestamp;
+    }
+
     /// Set admin address
     public entry fun set_admin_address(
         admin: &signer,
@@ -404,6 +418,9 @@ module MasterChefDeployer::MasterChef {
         mint_reward_token();
         settle_pending_reward<CoinType>(user_account);
 
+        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
+
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let multiplier = get_boost_multiplier(pool_info.multiplier);
         let user_addr = signer::address_of(user_account);
@@ -450,6 +467,9 @@ module MasterChefDeployer::MasterChef {
         mint_reward_token();
         settle_pending_reward<CoinType>(user_account);
 
+        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
+
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
         let multiplier = get_boost_multiplier(pool_info.multiplier);
@@ -475,9 +495,12 @@ module MasterChefDeployer::MasterChef {
     // Withdraw without caring about the rewards. EMERGENCY ONLY
     public entry fun emergency_withdraw<CoinType>(
         user_account: &signer
-    ) acquires UserInfo, PoolInfo, Events {
+    ) acquires MasterChefData, UserInfo, PoolInfo, Events {
         let user_addr = signer::address_of(user_account);
         assert!(exists<UserInfo<CoinType>>(user_addr), ERR_USERINFO_NOT_EXIST);
+
+        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
         
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let multiplier = get_boost_multiplier(pool_info.multiplier);
@@ -501,7 +524,7 @@ module MasterChefDeployer::MasterChef {
     }
 
     /// Update pool info
-    public entry fun update_pool<CoinType>() acquires MasterChefData, PoolInfo {
+    fun update_pool<CoinType>() acquires MasterChefData, PoolInfo {
         assert!(exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_NOT_EXIST);
 
         let current_timestamp = timestamp::now_seconds();

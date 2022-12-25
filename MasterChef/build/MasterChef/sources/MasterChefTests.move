@@ -95,6 +95,7 @@ module MasterChefDeployer::MasterChefTests {
         test_coin_init(admin, someone, dev);
 
         coin::register<BTC>(resource_account);
+        MasterChef::enable_farm(admin);
 
         // deposit
         let pre_user_balance = coin::balance<BTC>(signer::address_of(someone));

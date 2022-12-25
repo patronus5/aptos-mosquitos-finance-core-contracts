@@ -74,6 +74,7 @@ module MasterChefDeployer::AirdropTests {
 
         Airdrop::add_airdrop_list(admin, address_list, amount_list);
         // Airdrop::add_custom_airdrop_test_only(admin, signer::address_of(someone), 555);
+        Airdrop::start_airdrop(admin, 0);
         Airdrop::claim_airdrop(someone);
         Airdrop::claim_airdrop(another);
         let someone_balance = coin::balance<SUCKR>(signer::address_of(someone));
