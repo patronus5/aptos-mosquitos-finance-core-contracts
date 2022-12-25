@@ -30,7 +30,8 @@ module AirdropDeployer::Airdrop {
     struct Airdrop has key {
         is_started: bool,
         admin_address: address,
-        map: SimpleMap<address, u64>,
+        amount_map: SimpleMap<address, u64>,
+        claimed_map: SimpleMap<address, bool>,
         treasury: Coin<SUCKR>,
         end_timestamp: u64,
         claim_airdrop_event: event::EventHandle<ClaimAirdropEvent>,
@@ -47,7 +48,8 @@ module AirdropDeployer::Airdrop {
         move_to(admin, Airdrop {
             is_started: false,
             admin_address: signer::address_of(admin),
-            map: simple_map::create<address, u64>(),
+            amount_map: simple_map::create<address, u64>(),
+            claimed_map: simple_map::create<address, bool>(),
             treasury: coins,
             end_timestamp: 0,
             claim_airdrop_event: account::new_event_handle<ClaimAirdropEvent>(admin),
@@ -89,7 +91,8 @@ module AirdropDeployer::Airdrop {
         while (i < len) {
             let addr = vector::borrow<address>(&address_list, i);
             let amount = vector::borrow<u64>(&amount_list, i);
-            simple_map::add<address, u64>(&mut airdrop_data.map, *addr, *amount);
+            simple_map::add<address, u64>(&mut airdrop_data.amount_map, *addr, *amount);
+            simple_map::add<address, bool>(&mut airdrop_data.claimed_map, *addr, false);
             i = i + 1;
         };
     }
@@ -101,7 +104,8 @@ module AirdropDeployer::Airdrop {
     ) acquires Airdrop {
         let airdrop_data = borrow_global_mut<Airdrop>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == airdrop_data.admin_address, ERR_FORBIDDEN);
-        simple_map::add<address, u64>(&mut airdrop_data.map, user_addr, user_amount);
+        simple_map::add<address, u64>(&mut airdrop_data.amount_map, user_addr, user_amount);
+        simple_map::add<address, bool>(&mut airdrop_data.claimed_map, user_addr, false);
     }
 
     public entry fun claim_airdrop(account: &signer) acquires Airdrop {
@@ -110,9 +114,13 @@ module AirdropDeployer::Airdrop {
         let user_addr = signer::address_of(account);
         assert!(airdrop_data.is_started == true, ERR_NOT_STARTED);
         assert!(airdrop_data.end_timestamp >= current_timestamp, ERR_AIRDROP_ENDED);
-        assert!(simple_map::contains_key<address, u64>(&airdrop_data.map, &user_addr), ERR_NOT_EXIST);
+        assert!(simple_map::contains_key<address, u64>(&airdrop_data.amount_map, &user_addr), ERR_NOT_EXIST);
         
-        let amount = *(simple_map::borrow<address, u64>(&airdrop_data.map, &user_addr));
+        let claimed = simple_map::borrow_mut<address, bool>(&mut airdrop_data.claimed_map, &user_addr);
+        assert!(*claimed == false, ERR_NOT_EXIST);
+        *claimed = true;
+
+        let amount = *(simple_map::borrow<address, u64>(&airdrop_data.amount_map, &user_addr));
         let total_amount = (coin::value(&airdrop_data.treasury) as u64);
         assert!(total_amount >= amount, ERR_INSUFFICIENT_BALANCE);
 
