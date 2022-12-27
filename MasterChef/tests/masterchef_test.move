@@ -68,8 +68,8 @@ module MasterChefDeployer::MasterChefTests {
             let coins = coin::mint<BTC>(INIT_FAUCET_COIN, &mint_cap);
             coin::deposit(signer::address_of(someone), coins);
     
-            MasterChef::add<BTC>(admin, 30, 1, 50);
-            MasterChef::add<USDT>(admin, 50, 1, 15);
+            MasterChef::add<BTC>(admin, 30, 500);
+            MasterChef::add<USDT>(admin, 50, 15);
             move_to(admin, Caps<BTC> {
                 mint: mint_cap,
                 freeze: freeze_cap,

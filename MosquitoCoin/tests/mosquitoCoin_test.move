@@ -30,7 +30,8 @@ module MasterChefDeployer::MosquitosCoinTests {
         create_account_for_test(signer::address_of(admin));
         create_account_for_test(signer::address_of(resource_account));
         test_module_init(admin);
-        MosquitoCoin::mint_SUCKR(resource_account, INIT_FAUCET_COIN);
+        let coins = MosquitoCoin::mint_farm_SUCKR(resource_account, INIT_FAUCET_COIN);
+        coin::deposit<SUCKR>(signer::address_of(resource_account), coins);
         let cur_user_balance = coin::balance<SUCKR>(signer::address_of(resource_account));
         debug::print(&cur_user_balance);
 

@@ -55,6 +55,8 @@ module MasterChefDeployer::MosquitoCoin {
     /// Store min/burn/freeze capabilities for reward token under resource account
     struct Caps<phantom CoinType> has key {
         admin_address: address,
+        farm_address: address,
+        direct_mint: bool,
         mint: MintCapability<CoinType>,
         freeze: FreezeCapability<CoinType>,
         burn: BurnCapability<CoinType>,
@@ -66,12 +68,12 @@ module MasterChefDeployer::MosquitoCoin {
         value: u64,
     }
 
-    public entry fun initialize(admin: &signer) {
+    fun init_module(admin: &signer) {
         let admin_addr = signer::address_of(admin);
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<SUCKR>(
             admin,
-            utf8(b"FIY Coin"),
-            utf8(b"FIY"),
+            utf8(b"FII Coin"),
+            utf8(b"FII"),
             8,
             true,
         );
@@ -79,6 +81,8 @@ module MasterChefDeployer::MosquitoCoin {
 
         move_to(admin, Caps<SUCKR> {
             admin_address: admin_addr,
+            farm_address: RESOURCE_ACCOUNT_ADDRESS,
+            direct_mint: true,
             mint: mint_cap,
             burn: burn_cap,
             freeze: freeze_cap,
@@ -111,6 +115,13 @@ module MasterChefDeployer::MosquitoCoin {
         let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == caps.admin_address, ERR_FORBIDDEN);
         caps.admin_address = addr;
+    }
+
+    // Set farm address
+    public entry fun set_farm_address(admin: &signer, addr: address) acquires Caps {
+        let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == caps.admin_address, ERR_FORBIDDEN);
+        caps.farm_address = addr;
     }
 
     // Set airdrop address for withdrawing the SUCKR token
@@ -290,8 +301,25 @@ module MasterChefDeployer::MosquitoCoin {
     // Mints new coin on resource account
     public fun mint_SUCKR(
         admin: &signer,
-        amount: u64
+        amount: u64,
+        to: address,
     ) acquires Caps {
+        let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == caps.admin_address, ERR_FORBIDDEN);
+        assert!(caps.direct_mint, ERR_FORBIDDEN);
+
+        let coins = coin::mint<SUCKR>(amount, &caps.mint);
+        coin::deposit(to, coins);
+        event::emit_event(&mut caps.mint_event, MintBurnEvent {
+            value: amount,
+        });
+    }
+
+    // Mints new coin on resource account
+    public fun mint_farm_SUCKR(
+        admin: &signer,
+        amount: u64
+    ): Coin<SUCKR> acquires Caps {
         let admin_addr = signer::address_of(admin);
         if (!coin::is_account_registered<SUCKR>(admin_addr)) {
             coin::register<SUCKR>(admin);
@@ -299,10 +327,7 @@ module MasterChefDeployer::MosquitoCoin {
         let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
         assert!(admin_addr == RESOURCE_ACCOUNT_ADDRESS, ERR_FORBIDDEN);
         let coins = coin::mint<SUCKR>(amount, &caps.mint);
-        coin::deposit(RESOURCE_ACCOUNT_ADDRESS, coins);
-        event::emit_event(&mut caps.mint_event, MintBurnEvent {
-            value: amount,
-        });
+        coins
     }
 
     // Burn the coins on a account
@@ -318,11 +343,18 @@ module MasterChefDeployer::MosquitoCoin {
         });
     }
 
-    // only resource_account should call this
+    // Only resource_account should call this
     public entry fun register_SUCKR(account: &signer) {
         let account_addr = signer::address_of(account);
         if (!coin::is_account_registered<SUCKR>(account_addr)) {
             coin::register<SUCKR>(account);
         };
+    }
+
+    // After call this, direct mint will be disabled forever
+    public entry fun set_disable_direct_mint(admin: &signer) acquires Caps {
+        let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == caps.admin_address, ERR_FORBIDDEN);
+        caps.direct_mint = false;
     }
 }
