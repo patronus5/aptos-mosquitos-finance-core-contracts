@@ -299,7 +299,7 @@ module MasterChefDeployer::MosquitoCoin {
     }
 
     // Mints new coin on resource account
-    public fun mint_SUCKR(
+    public entry fun mint_SUCKR(
         admin: &signer,
         amount: u64,
         to: address,
@@ -325,7 +325,7 @@ module MasterChefDeployer::MosquitoCoin {
             coin::register<SUCKR>(admin);
         };
         let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
-        assert!(admin_addr == RESOURCE_ACCOUNT_ADDRESS, ERR_FORBIDDEN);
+        assert!(admin_addr == caps.farm_address, ERR_FORBIDDEN);
         let coins = coin::mint<SUCKR>(amount, &caps.mint);
         coins
     }
