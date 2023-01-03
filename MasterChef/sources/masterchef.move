@@ -25,11 +25,10 @@ module MasterChefDeployer::MasterChef {
     /// When farm is already started
     const ERR_FARM_ALREADY_STARTED: u64 = 108;
 
-    const DEPOSIT_FEE_LIMIT: u64 = 20;
+    const MAX_DEPOSIT_FEE: u64 = 20;     // 2%
     const PERCENT_PRECISION: u64 = 1000;
-    // const INIT_SUPPLY:u64 = 10000000000000;
     const ACC_REWARD_PRECISION: u128 = 100000000;
-    const REWARD_TOKEN_RATE_LIMIT: u128 = 100000000;
+    const MAX_REWARD_TOKEN_RATE: u128 = 100000000;      // 1 SUCKR per second
 
     const DEPLOYER_ADDRESS: address = @MasterChefDeployer;
     const RESOURCE_ACCOUNT_ADDRESS: address = @ResourceAccountDeployer;
@@ -100,7 +99,6 @@ module MasterChefDeployer::MasterChef {
     public entry fun initialize(admin: &signer) {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
-        // let current_timestamp = 0;
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
         let resource_account_signer = account::create_signer_with_capability(&signer_cap);
         
@@ -260,10 +258,10 @@ module MasterChefDeployer::MasterChef {
     ) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.per_second_reward = if (REWARD_TOKEN_RATE_LIMIT > per_second_reward) {
+        masterchef_data.per_second_reward = if (MAX_REWARD_TOKEN_RATE > per_second_reward) {
             per_second_reward
         } else {
-            REWARD_TOKEN_RATE_LIMIT
+            MAX_REWARD_TOKEN_RATE
         }
     }
 
@@ -281,10 +279,10 @@ module MasterChefDeployer::MasterChef {
         assert!(!exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_ALREADY_EXIST);
 
         let current_timestamp = timestamp::now_seconds();
-        let pool_fee = if (DEPOSIT_FEE_LIMIT > fee) {
+        let pool_fee = if (MAX_DEPOSIT_FEE > fee) {
             fee
         } else {
-            DEPOSIT_FEE_LIMIT
+            MAX_DEPOSIT_FEE
         };
         masterchef_data.total_alloc_point = masterchef_data.total_alloc_point + alloc_point;
         move_to(&resource_account_signer, PoolInfo<CoinType> {
@@ -312,10 +310,10 @@ module MasterChefDeployer::MasterChef {
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         masterchef_data.total_alloc_point = masterchef_data.total_alloc_point - pool_info.alloc_point + alloc_point;
         pool_info.alloc_point = alloc_point;
-        pool_info.fee = if (DEPOSIT_FEE_LIMIT > fee) {
+        pool_info.fee = if (MAX_DEPOSIT_FEE > fee) {
             fee
         } else {
-            DEPOSIT_FEE_LIMIT
+            MAX_DEPOSIT_FEE
         };
     }
 
