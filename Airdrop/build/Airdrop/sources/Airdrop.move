@@ -42,7 +42,7 @@ module AirdropDeployer::Airdrop {
         value: u64,
     }
 
-    public entry fun initialize(admin: &signer) {
+    fun init_module(admin: &signer) {
         let total_amount = coin::balance<SUCKR>(signer::address_of(admin));
         let coins = coin::withdraw<SUCKR>(admin, total_amount);
         move_to(admin, Airdrop {

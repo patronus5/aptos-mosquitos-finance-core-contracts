@@ -72,8 +72,8 @@ module MasterChefDeployer::MosquitoCoin {
         let admin_addr = signer::address_of(admin);
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<SUCKR>(
             admin,
-            utf8(b"FII Coin"),
-            utf8(b"FII"),
+            utf8(b"SUCKR"),
+            utf8(b"SUCKR"),
             8,
             true,
         );
@@ -299,7 +299,7 @@ module MasterChefDeployer::MosquitoCoin {
     }
 
     // Mints new coin on resource account
-    public fun mint_SUCKR(
+    public entry fun mint_SUCKR(
         admin: &signer,
         amount: u64,
         to: address,
@@ -325,7 +325,7 @@ module MasterChefDeployer::MosquitoCoin {
             coin::register<SUCKR>(admin);
         };
         let caps = borrow_global_mut<Caps<SUCKR>>(DEPLOYER_ADDRESS);
-        assert!(admin_addr == RESOURCE_ACCOUNT_ADDRESS, ERR_FORBIDDEN);
+        assert!(admin_addr == caps.farm_address, ERR_FORBIDDEN);
         let coins = coin::mint<SUCKR>(amount, &caps.mint);
         coins
     }
