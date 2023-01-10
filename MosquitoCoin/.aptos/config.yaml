@@ -1,9 +1,9 @@
 ---
 profiles:
   airdrop:
-    private_key: "0x50d560339e2f1fd8d557c5874230785ac0bbdaedfbb4bc2ca768501c7c9ba0ad"
-    public_key: "0x379af50efaabf0b55f7ff32a21fd81cb3d7716c26952fbdb0333bbe2de344695"
-    account: 75a941a24bf4f0499f422a00e63bbc021a9100f2202ea33a9a24df15a1b8703d
+    private_key: "0x9ee2c5aa6373c2d5ed885ff59b2a9e9e2295e7d8becaf7c9e7ffeaaa59a6807d"
+    public_key: "0xf5917fb5f1015f1ee73f881695343ab234b28d784ecfa715592eaf533445db49"
+    account: 28e49b130141ff36c361794be1451f0493264b49bae3e8eaac2bda034d0c5daf
     rest_url: "https://fullnode.mainnet.aptoslabs.com"
   masterchef:
     private_key: "0x3f95ab8d71920663021718f907d8e3952e09ac06eeda868d03f40c211c7e3c1d"
