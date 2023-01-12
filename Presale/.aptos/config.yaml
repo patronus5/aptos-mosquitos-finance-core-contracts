@@ -1,0 +1,7 @@
+---
+profiles:
+  default:
+    private_key: "0x1b5ce66613b83e5fc61051db5f34e9b3d2064103d46e2a1399665c71fa7e34ae"
+    public_key: "0x4ba70f6c562223509301bee34909cb33e5996458d0cd126276139e91d5e8ed22"
+    account: cf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e
+    rest_url: "https://fullnode.testnet.aptoslabs.com"

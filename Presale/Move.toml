@@ -1,0 +1,9 @@
+[package]
+name = 'Presale'
+version = '1.0.0'
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "mainnet" }
+
+[addresses]
+PresaleDeployer = "0xcf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e"
