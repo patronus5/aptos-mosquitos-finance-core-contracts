@@ -3,7 +3,13 @@ name = 'Presale'
 version = '1.0.0'
 
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "mainnet" }
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "testnet" }
+LiquidswapRouterV2 = { git="https://github.com/pontem-network/liquidswap.git", subdir = "liquidswap_router_v2", rev = "testnet" }
+MosquitoCoin = { local = "../MosquitoCoin" }
+
 
 [addresses]
+liquidswap = "0x190d44266241744264b964a37b8f09863167a12d3e70cda39376cfb4e3561e12"
 PresaleDeployer = "0xcf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e"
+MasterChefDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
+PresaleResourceAccount = "0xd584a0927b5dee6c534a2157ee895580ae417bae2b4a26a35519e5d224a12808"

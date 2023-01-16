@@ -76,13 +76,12 @@ module PresaleDeployer::Presale {
         signer::address_of(&resource_account_signer)
     }
 
-    // Return resource account signer
+    /// return resource account signer
     fun get_resource_account_signer(): signer acquires PresaleData {
         let signer_cap = &borrow_global<PresaleData>(RESOURCE_ACCOUNT_ADDRESS).signer_cap;
         account::create_signer_with_capability(signer_cap)
     }
 
-    // Register coin X, Y for payment method.
     public entry fun register_coin<X, Y>(
         admin: &signer
     ) acquires PresaleData {
@@ -106,13 +105,12 @@ module PresaleDeployer::Presale {
         amount: u64
     ) acquires PresaleData {
         assert!(amount > 0, ERR_MUST_BE_GREATER);
-
+        
         let resource_account_signer = get_resource_account_signer();
         let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
         let x_coin_type = type_info::type_of<X>();
         let y_coin_type = type_info::type_of<Y>();
         
-        // Check X, Y is registerd or not.
         let i = 0;
         let x_index = 2;
         let y_index = 2;
@@ -136,8 +134,7 @@ module PresaleDeployer::Presale {
             amount = cur_balance;
         };
 
-        // Assume that user want to buy the SUCKR with SUDT in default.
-        let coin_amount: u128 = (presale_data.token_price as u128) * (amount as u128);
+        let coin_amount: u128 = (presale_data.token_price as u128) * (amount as u128);  // default is USDT
         // When user want to buy the SUCKR with aptos_coin
         if (x_index == 0) {
             let aptos_amount = router_v2::get_amount_out<X, Y, curves::Uncorrelated>(
