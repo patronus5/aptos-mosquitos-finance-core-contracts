@@ -28,6 +28,8 @@ module PresaleDeployer::Presale {
     const ERR_MUST_BE_GREATER: u64 = 111;
     /// When 2 coins already registered
     const ERR_ALREADY_REGISTERED: u64 = 112;
+    /// When presale is not ended 
+    const ERR_NOT_ENDED: u64 = 113;
 
     const DEPLOYER_ADDRESS: address = @PresaleDeployer;
     const RESOURCE_ACCOUNT_ADDRESS: address = @PresaleResourceAccount;
@@ -53,6 +55,7 @@ module PresaleDeployer::Presale {
         treasury: Coin<SUCKR>,
         is_presale_available: bool,
         end_timestamp: u64,
+        team_address: address,
     }
 
     public entry fun initialize(admin: &signer) {
@@ -62,12 +65,13 @@ module PresaleDeployer::Presale {
         move_to(&resource_account_signer, PresaleData {
             signer_cap: signer_cap,
             admin_addr: signer::address_of(admin),
-            token_price: 50000,
+            token_price: 50000,    // SUCKR price is 0.05 USDT in default. USDT decimals is 6.
             coin_vec: vector::empty(),
             user_vec: vector::empty(),
             treasury: coin::zero(),
             is_presale_available: false,
-            end_timestamp: 0
+            end_timestamp: 0,
+            team_address: signer::address_of(admin),
         });
     }
 
@@ -82,12 +86,24 @@ module PresaleDeployer::Presale {
         account::create_signer_with_capability(signer_cap)
     }
 
+    // Set the team wallet address for withdrawing funds
+    public entry fun set_team_address(
+        admin: &signer,
+        team_addr: address
+    ) acquires PresaleData {
+        let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
+        assert!(signer::address_of(admin) == presale_data.admin_addr, ERR_FORBIDDEN);
+        presale_data.team_address = team_addr;
+    }
+
     // Enable the presale and set the end time.
     public entry fun start_presale(admin: &signer) acquires PresaleData {
         let current_timestamp = timestamp::now_seconds();
         let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
         assert!(signer::address_of(admin) == presale_data.admin_addr, ERR_FORBIDDEN);
 
+        let coins_out = coin::withdraw(admin, coin::balance<SUCKR>(signer::address_of(admin)));
+        coin::merge(&mut presale_data.treasury, coins_out);
         presale_data.is_presale_available = true;
         presale_data.end_timestamp = current_timestamp;
     }
@@ -143,7 +159,7 @@ module PresaleDeployer::Presale {
         assert!(amount > 0, ERR_MUST_BE_GREATER);
 
         // Check X, Y is registerd or not.
-        let x_scale = math::pow_10(coin::decimals<X>());
+        let scale = math::pow_10(coin::decimals<SUCKR>());
         let (x_index, y_index) = is_registered_coin<X, Y>();
         assert!(x_index != y_index, ERR_NOT_EXIST);
         assert!(x_index < 2 && y_index < 2, ERR_NOT_EXIST);
@@ -160,12 +176,12 @@ module PresaleDeployer::Presale {
         let coin_amount: u128 = (presale_data.token_price as u128) * (amount as u128);
         // When user want to buy the SUCKR with aptos_coin
         if (x_index == 0) {
-            let aptos_amount = router_v2::get_amount_out<X, Y, curves::Uncorrelated>(
+            let aptos_amount = router_v2::get_amount_out<Y, X, curves::Uncorrelated>(
                 presale_data.token_price
             );
             coin_amount = (aptos_amount as u128) * (amount as u128);
         };
-        coin_amount = coin_amount / (x_scale as u128);
+        coin_amount = coin_amount / (scale as u128);
 
         // Transfer user coin to resource account
         let coins_in = coin::withdraw<X>(user_account, (coin_amount as u64));
@@ -194,14 +210,18 @@ module PresaleDeployer::Presale {
     }
 
     // Release the pending SUCKR for users
-    public entry fun release_SUCKR(admin: &signer) acquires PresaleData {
+    public entry fun release_SUCKR<X, Y>(admin: &signer) acquires PresaleData {
+        let (x_index, y_index) = is_registered_coin<X, Y>();
+        assert!(x_index == 0 && y_index == 1, ERR_INCORRECT_PAIR);
+
+        let resource_account_signer = get_resource_account_signer();
         let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
         assert!(signer::address_of(admin) == presale_data.admin_addr, ERR_FORBIDDEN);
         
         // Check the presale is availabe or not
         let current_timestamp = timestamp::now_seconds();
         assert!(presale_data.is_presale_available, ERR_NOT_STARTED);
-        assert!(presale_data.end_timestamp < current_timestamp, ERR_ENDED);
+        assert!(presale_data.end_timestamp < current_timestamp, ERR_NOT_ENDED);
 
         let i = 0;
         let len = vector::length(&mut presale_data.user_vec);
@@ -212,13 +232,18 @@ module PresaleDeployer::Presale {
             coin::deposit<SUCKR>(user_info.addr, coins_out);
             i = i + 1;
         };
+
+        let x_coin_out = coin::withdraw<X>(&resource_account_signer, coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS));
+        let y_coin_out = coin::withdraw<Y>(&resource_account_signer, coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS));
+        coin::deposit<X>(presale_data.team_address, x_coin_out);
+        coin::deposit<Y>(presale_data.team_address, y_coin_out);
     }
 
     // Refunds the paid aptos_coin and USDT to users
     public entry fun refund_to_users<X, Y>(admin: &signer) acquires PresaleData {
         let (x_index, y_index) = is_registered_coin<X, Y>();
         assert!(x_index == 0 && y_index == 1, ERR_INCORRECT_PAIR);
-        
+
         let resource_account_signer = get_resource_account_signer();
         let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
         assert!(signer::address_of(admin) == presale_data.admin_addr, ERR_FORBIDDEN);
@@ -226,7 +251,7 @@ module PresaleDeployer::Presale {
         // Check the presale is availabe or not
         let current_timestamp = timestamp::now_seconds();
         assert!(presale_data.is_presale_available, ERR_NOT_STARTED);
-        assert!(presale_data.end_timestamp < current_timestamp, ERR_ENDED);
+        assert!(presale_data.end_timestamp < current_timestamp, ERR_NOT_ENDED);
 
         let i = 0;
         let len = vector::length(&mut presale_data.user_vec);
