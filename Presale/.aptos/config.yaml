@@ -5,3 +5,8 @@ profiles:
     public_key: "0x4ba70f6c562223509301bee34909cb33e5996458d0cd126276139e91d5e8ed22"
     account: cf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e
     rest_url: "https://fullnode.testnet.aptoslabs.com"
+  presale:
+    private_key: "0x873c4241ad677a467fbf232c839882f08276723940722fa9af182997f3d33545"
+    public_key: "0x3bd91002ce5abdad17b91a730bb7c0afbe0a4c3f4156ff71111be52948a7e70a"
+    account: e5bf7a75db7dadd9cf950b0dde8f0cfd7cc2673786f76633dfd76bdfc0946a1d
+    rest_url: "https://fullnode.testnet.aptoslabs.com"

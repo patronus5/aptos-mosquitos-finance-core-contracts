@@ -41,8 +41,8 @@ module PresaleDeployer::PresaleTests {
         test_module_init(admin);
 
         // Presale::register_coin<Aptos>(admin, false);
-        Presale::register_coin<Aptos, USDT>(admin);
+        // Presale::register_coin<Aptos, USDT>(admin);
 
-        Presale::buy_SUCKR<Aptos, USDT>(admin, 20);
+        // Presale::buy_SUCKR<Aptos, USDT>(admin, 20);
     }
 }

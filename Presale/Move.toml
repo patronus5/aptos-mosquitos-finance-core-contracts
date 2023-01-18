@@ -10,6 +10,6 @@ MosquitoCoin = { local = "../MosquitoCoin" }
 
 [addresses]
 liquidswap = "0x190d44266241744264b964a37b8f09863167a12d3e70cda39376cfb4e3561e12"
-PresaleDeployer = "0xcf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e"
+PresaleDeployer = "0xe5bf7a75db7dadd9cf950b0dde8f0cfd7cc2673786f76633dfd76bdfc0946a1d"
 MasterChefDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
-PresaleResourceAccount = "0xd584a0927b5dee6c534a2157ee895580ae417bae2b4a26a35519e5d224a12808"
+PresaleResourceAccount = "0xdc0be5c5d9e7570a019e63ffbb982701b181cd1db7200635b5d7e1338da55536"
