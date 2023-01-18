@@ -200,9 +200,16 @@ module PresaleDeployer::Presale {
             paid_coin_y_amount = amount_in;
         };
         
+        if (!coin::is_account_registered<X>(signer::address_of(user_account))) {
+            coin::register<X>(user_account);
+        };
+        if (!coin::is_account_registered<Y>(signer::address_of(user_account))) {
+            coin::register<Y>(user_account);
+        };
         if (!coin::is_account_registered<SUCKR>(signer::address_of(user_account))) {
             coin::register<SUCKR>(user_account);
         };
+
         vector::push_back<UserInfo>(&mut presale_data.user_vec, UserInfo {
             paid_coin_x_amount,
             paid_coin_y_amount,
@@ -238,10 +245,14 @@ module PresaleDeployer::Presale {
             i = i + 1;
         };
 
-        let x_coin_out = coin::withdraw<X>(&resource_account_signer, coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS));
-        // let y_coin_out = coin::withdraw<Y>(&resource_account_signer, coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS));
-        coin::deposit<X>(presale_data.team_address, x_coin_out);
-        // coin::deposit<Y>(presale_data.team_address, y_coin_out);
+        if (coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS) > 0) {
+            let x_coin_out = coin::withdraw<X>(&resource_account_signer, coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS));
+            coin::deposit<X>(presale_data.team_address, x_coin_out);
+        };
+        if (coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS) > 0) {
+            let y_coin_out = coin::withdraw<Y>(&resource_account_signer, coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS));
+            coin::deposit<Y>(presale_data.team_address, y_coin_out);
+        };
     }
 
     // Refunds the paid aptos_coin and USDT to users
@@ -267,21 +278,24 @@ module PresaleDeployer::Presale {
             } else {
                 coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS)
             };
-            let y_amount_out = if (user_info.paid_coin_y_amount < coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS)) {
-                user_info.paid_coin_y_amount
-            } else {
-                coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS)
+            if (x_amount_out > 0) {
+                let x_coins_out = coin::withdraw<X>(&resource_account_signer, x_amount_out);
+                coin::deposit<X>(user_info.addr, x_coins_out);
             };
-
-            let x_coins_out = coin::withdraw<X>(&resource_account_signer, x_amount_out);
-            coin::deposit<X>(user_info.addr, x_coins_out);
-            if (y_amount_out > 0) {
-                let y_coins_out = coin::withdraw<Y>(&resource_account_signer, y_amount_out);
-                coin::deposit<Y>(user_info.addr, y_coins_out);
-            };
+            
+            // let y_amount_out = if (user_info.paid_coin_y_amount < coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS)) {
+            //     user_info.paid_coin_y_amount
+            // } else {
+            //     coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS)
+            // };
+            // if (y_amount_out > 0) {
+            //     let y_coins_out = coin::withdraw<Y>(&resource_account_signer, y_amount_out);
+            //     coin::deposit<Y>(user_info.addr, y_coins_out);
+            // };
             user_info.paid_coin_x_amount = 0;
             user_info.paid_coin_y_amount = 0;
             user_info.reserved_amount = 0;
+            i = i + 1;
         };
     }
 }
