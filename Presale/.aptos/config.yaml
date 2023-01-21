@@ -1,12 +1,27 @@
 ---
 profiles:
-  default:
-    private_key: "0x1b5ce66613b83e5fc61051db5f34e9b3d2064103d46e2a1399665c71fa7e34ae"
-    public_key: "0x4ba70f6c562223509301bee34909cb33e5996458d0cd126276139e91d5e8ed22"
-    account: cf7b0393f09c9e353b42b682d9c71057fc7c7d0df537a20dbc4823adc95ae21e
-    rest_url: "https://fullnode.testnet.aptoslabs.com"
   presale:
     private_key: "0x873c4241ad677a467fbf232c839882f08276723940722fa9af182997f3d33545"
     public_key: "0x3bd91002ce5abdad17b91a730bb7c0afbe0a4c3f4156ff71111be52948a7e70a"
     account: e5bf7a75db7dadd9cf950b0dde8f0cfd7cc2673786f76633dfd76bdfc0946a1d
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  presaleNew:
+    private_key: "0xceeef62bfb7dc0cf0007104452ac2098b6e1cdaef875e5d8e18a9b862a4457fd"
+    public_key: "0x280358d122876a32771e6d1dc411e2c216ec8a380b143c5cee9ce569f24a4f52"
+    account: 6dd1438732c1299fad0f0938f338a899f070ecd4449400428ffc5809cb5d1f3d
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  teamwallet:
+    private_key: "0xe948a319e567178325ae7d5e1073b6b8dc40655f8629cd54d6e311081cb317c1"
+    public_key: "0xe2205083c3e35fbdd4800458d5eb4f53bd57bd38e7a3324134ecb7b2724180b5"
+    account: 4dc63d9001a1fab77bcdb6d7a7e7a4effe0e5c83fbb38fe5054f92fa3f8b734f
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  userone:
+    private_key: "0x28656bb68a5ce3ef248bb994b6bf31f63fb16c55686ee28d6bef7cf7e88ab712"
+    public_key: "0x09226ac56446ce2289515d91bb746f77f650eb7576cdff2073586189a234981b"
+    account: a862d16b7b6ca6e8856622377ebe5da4327130e00303eaeed60edc49c747ff57
+    rest_url: "https://fullnode.testnet.aptoslabs.com"
+  usertwo:
+    private_key: "0x18e9ad820d140b4c1f208039143b9bcb533960ef3442d39c48a26431c95d91a2"
+    public_key: "0x8a814e73ecde462c2b1e800f0c67f6f286c6fed7e83f5d233791df3948b18467"
+    account: 3f3bff624734bc1310ee371b782798fd19280d91ec46c6495f2983c283fdd28a
     rest_url: "https://fullnode.testnet.aptoslabs.com"

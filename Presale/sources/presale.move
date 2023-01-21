@@ -249,7 +249,7 @@ module PresaleDeployer::Presale {
             let x_coin_out = coin::withdraw<X>(&resource_account_signer, coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS));
             coin::deposit<X>(presale_data.team_address, x_coin_out);
         };
-        if (coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS) > 0) {
+        if (coin::is_account_registered<Y>(presale_data.team_address)) {
             let y_coin_out = coin::withdraw<Y>(&resource_account_signer, coin::balance<Y>(RESOURCE_ACCOUNT_ADDRESS));
             coin::deposit<Y>(presale_data.team_address, y_coin_out);
         };
@@ -271,6 +271,10 @@ module PresaleDeployer::Presale {
 
         let i = 0;
         let len = vector::length(&mut presale_data.user_vec);
+        // while (i < len) {
+        //     vector::remove<UserInfo>(&mut presale_data.user_vec, len - i -1);
+        //     i = i + 1;
+        // };
         while (i < len) {
             let user_info = vector::borrow_mut<UserInfo>(&mut presale_data.user_vec, i);
             let x_amount_out = if (user_info.paid_coin_x_amount < coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS)) {
