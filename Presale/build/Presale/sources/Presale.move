@@ -223,7 +223,6 @@ module PresaleDeployer::Presale {
         let (x_index, y_index) = is_registered_coin<X, Y>();
         assert!(x_index == 0 && y_index == 1, ERR_INCORRECT_PAIR);
 
-        let resource_account_signer = get_resource_account_signer();
         let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
         assert!(signer::address_of(admin) == presale_data.admin_addr, ERR_FORBIDDEN);
         
@@ -244,6 +243,15 @@ module PresaleDeployer::Presale {
             user_info.reserved_amount = 0;
             i = i + 1;
         };
+    }
+
+    public entry fun withdraw_funds<X, Y>(team_wallet: & signer) acquires PresaleData {
+        let (x_index, y_index) = is_registered_coin<X, Y>();
+        assert!(x_index == 0 && y_index == 1, ERR_INCORRECT_PAIR);
+
+        let resource_account_signer = get_resource_account_signer();
+        let presale_data = borrow_global_mut<PresaleData>(RESOURCE_ACCOUNT_ADDRESS);
+        assert!(signer::address_of(team_wallet) == presale_data.team_address, ERR_FORBIDDEN);
 
         if (coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS) > 0) {
             let x_coin_out = coin::withdraw<X>(&resource_account_signer, coin::balance<X>(RESOURCE_ACCOUNT_ADDRESS));
