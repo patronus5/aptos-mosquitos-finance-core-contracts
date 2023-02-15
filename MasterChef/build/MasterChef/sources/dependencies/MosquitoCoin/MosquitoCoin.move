@@ -68,12 +68,12 @@ module MasterChefDeployer::MosquitoCoin {
         value: u64,
     }
 
-    public fun initialize(admin: &signer) {
+    fun init_module(admin: &signer) {
         let admin_addr = signer::address_of(admin);
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<SUCKR>(
             admin,
-            utf8(b"FII Coin"),
-            utf8(b"FII"),
+            utf8(b"SUCKR"),
+            utf8(b"SUCKR"),
             8,
             true,
         );
