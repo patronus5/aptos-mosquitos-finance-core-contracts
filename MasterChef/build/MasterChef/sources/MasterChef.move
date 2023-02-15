@@ -8,21 +8,21 @@ module MasterChefDeployer::MasterChef {
     use aptos_framework::coin::{ Self, Coin };
     use aptos_framework::account::{ Self, SignerCapability };
 
-    /// When already exists on account
+    // When already exists on account
     const ERR_POOL_ALREADY_EXIST: u64 = 101;
-    /// When not exists on account
+    // When not exists on account
     const ERR_POOL_NOT_EXIST: u64 = 102;
-    /// When not greater than zero;
+    // When not greater than zero;
     const ERR_MUST_BE_GREATER_THAN_ZERO: u64 = 103;
-    /// When not exists on account
+    // When not exists on account
     const ERR_USERINFO_NOT_EXIST: u64 = 104;
-    /// When insufficient balance
+    // When insufficient balance
     const ERR_INSUFFICIENT_BALANCE: u64 = 105;
-    /// When user is not admin
+    // When user is not admin
     const ERR_FORBIDDEN: u64 = 106;
-    /// When farm is not started
+    // When farm is not started
     const ERR_FARM_NOT_STARTED: u64 = 107;
-    /// When farm is already started
+    // When farm is already started
     const ERR_FARM_ALREADY_STARTED: u64 = 108;
 
     const MAX_DEPOSIT_FEE: u64 = 20;     // 2%
@@ -33,12 +33,12 @@ module MasterChefDeployer::MasterChef {
     const DEPLOYER_ADDRESS: address = @MasterChefDeployer;
     const RESOURCE_ACCOUNT_ADDRESS: address = @ResourceAccountDeployer;
 
-    /// Store staked LP info under masterchef
+    // Store staked LP info under masterchef
     struct LPInfo has key {
         lp_list: vector<TypeInfo>
     }
 
-    /// Store available pool info under masterchef
+    // Store available pool info under masterchef
     struct PoolInfo<phantom CoinType> has key, store {
         fee: u64,
         alloc_point: u128,
@@ -48,14 +48,14 @@ module MasterChefDeployer::MasterChef {
         coin_reserve: Coin<CoinType>,
     }
 
-    /// Store user info under user account
+    // Store user info under user account
     struct UserInfo<phantom CoinType> has key, copy, store {
         amount: u64,
         reward_debt: u128,
         paid_reward_token_amount: u128,
     }
 
-    /// Store all admindata under masterchef
+    // Store all admindata under masterchef
     struct MasterChefData has key {
         signer_cap: SignerCapability,
         admin_address: address,
@@ -96,7 +96,7 @@ module MasterChefDeployer::MasterChef {
         amount: u64,
     }
 
-    public entry fun initialize(admin: &signer) {
+    public entry fun initialize(admin: &signer) acquires MasterChefData, LPInfo {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
@@ -135,22 +135,25 @@ module MasterChefDeployer::MasterChef {
             withdraw_event: account::new_event_handle<WithdrawEvent>(&resource_account_signer),
             emergency_withdraw_event: account::new_event_handle<WithdrawEvent>(&resource_account_signer),
         });
+
+        // SUCKR staking
+        add<SUCKR>(admin, 1000, 0);
     }
 
 /// functions list for view info ///
-    /// Get resource account address
+    // Get resource account address
     public fun get_resource_address(): address acquires MasterChefData {
         let resource_account_signer = get_resource_account_signer();
         signer::address_of(&resource_account_signer)
     }
 
-    /// return resource account signer
+    // return resource account signer
     fun get_resource_account_signer(): signer acquires MasterChefData {
         let signer_cap = &borrow_global<MasterChefData>(DEPLOYER_ADDRESS).signer_cap;
         account::create_signer_with_capability(signer_cap)
     }
 
-    /// Get user deposit amount
+    // Get user deposit amount
     public fun get_user_info<CoinType>(
         user_addr: address
     ): (u64, u128) acquires UserInfo {
@@ -159,7 +162,7 @@ module MasterChefDeployer::MasterChef {
         (user_info.amount, user_info.paid_reward_token_amount)
     }
 
-    /// Get the pending reward token amount
+    // Get the pending reward token amount
     public fun get_pending_rewardtoken<CoinType>(
         user_addr: address
     ): u128 acquires PoolInfo, UserInfo, MasterChefData {
@@ -181,7 +184,7 @@ module MasterChefDeployer::MasterChef {
     }
 
 /// functions list for only owner ///
-    /// Enable the farm
+    // Enable the farm
     public entry fun enable_farm(admin: &signer) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
@@ -191,7 +194,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.last_mint_timestamp = current_timestamp;
     }
 
-    /// Set admin address
+    // Set admin address
     public entry fun set_admin_address(
         admin: &signer,
         new_admin_address: address
@@ -201,7 +204,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.admin_address = new_admin_address;
     }
 
-    /// Set dev address
+    // Set dev address
     public entry fun set_dev_address(
         admin: &signer,
         dev_address: address
@@ -211,7 +214,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.dev_address = dev_address;
     }
 
-    /// Set team address
+    // Set team address
     public entry fun set_team_address(
         admin: &signer,
         team_address: address
@@ -221,7 +224,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.team_address = team_address;
     }
 
-    /// Set market address
+    // Set market address
     public entry fun set_market_address(
         admin: &signer,
         marketing_address: address
@@ -231,7 +234,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.marketing_address = marketing_address;
     }
 
-    /// Set lottery address
+    // Set lottery address
     public entry fun set_lottery_address(
         admin: &signer,
         lottery_address: address
@@ -241,7 +244,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.lottery_address = lottery_address;
     }
 
-    /// Set burn address
+    // Set burn address
     public entry fun set_burn_address(
         admin: &signer,
         burn_address: address
@@ -251,7 +254,7 @@ module MasterChefDeployer::MasterChef {
         masterchef_data.burn_address = burn_address;
     }
 
-    /// Set reward token amount per second
+    // Set reward token amount per second
     public entry fun set_per_second_reward(
         admin: &signer,
         per_second_reward: u128
@@ -265,7 +268,7 @@ module MasterChefDeployer::MasterChef {
         }
     }
 
-    /// Add a new pool
+    // Add a new pool
     public entry fun add<CoinType>(
         admin: &signer,
         alloc_point: u128,
@@ -296,7 +299,7 @@ module MasterChefDeployer::MasterChef {
         vector::push_back<TypeInfo>(&mut existing_lp_info.lp_list, type_info::type_of<CoinType>());
     }
 
-    /// Set the existing pool
+    // Set the existing pool
     public entry fun set<CoinType>(
         admin: &signer,
         alloc_point: u128,
@@ -317,7 +320,7 @@ module MasterChefDeployer::MasterChef {
         };
     }
 
-    /// Withdraw dev fee
+    // Withdraw dev fee
     public entry fun withdraw_dev_fee<CoinType>(dev_account: &signer) acquires MasterChefData, PoolInfo {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(dev_account) == masterchef_data.dev_address, ERR_FORBIDDEN);
@@ -331,7 +334,7 @@ module MasterChefDeployer::MasterChef {
         coin::deposit<CoinType>(signer::address_of(dev_account), coins_out);
     }
 
-    /// Withdraw the reward token for team
+    // Withdraw the reward token for team
     public entry fun withdraw_for_team(team_account: &signer) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(team_account) == masterchef_data.team_address, ERR_FORBIDDEN);
@@ -349,7 +352,7 @@ module MasterChefDeployer::MasterChef {
         coin::deposit<SUCKR>(signer::address_of(team_account), coins_out);
     }
 
-    /// Withdraw the reward token for marketing
+    // Withdraw the reward token for marketing
     public entry fun withdraw_for_marketing(marketing_account: &signer) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(marketing_account) == masterchef_data.marketing_address, ERR_FORBIDDEN);
@@ -367,7 +370,7 @@ module MasterChefDeployer::MasterChef {
         coin::deposit<SUCKR>(signer::address_of(marketing_account), coins_out);
     }
 
-    /// Withdraw the reward token for lottery
+    // Withdraw the reward token for lottery
     public entry fun withdraw_for_lottery(lottery_account: &signer) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(lottery_account) == masterchef_data.lottery_address, ERR_FORBIDDEN);
@@ -385,7 +388,7 @@ module MasterChefDeployer::MasterChef {
         coin::deposit<SUCKR>(signer::address_of(lottery_account), coins_out);
     }
 
-    /// Withdraw the reward token for burn
+    // Withdraw the reward token for burn
     public entry fun withdraw_for_burn(burn_account: &signer) acquires MasterChefData {
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
         assert!(signer::address_of(burn_account) == masterchef_data.burn_address, ERR_FORBIDDEN);
@@ -404,7 +407,7 @@ module MasterChefDeployer::MasterChef {
     }
 
 /// functions list for every user ///
-    /// Deposit LP tokens to pool
+    // Deposit LP tokens to pool
     public entry fun deposit<CoinType>(
         user_account: &signer,
         amount: u64
@@ -447,7 +450,7 @@ module MasterChefDeployer::MasterChef {
         });
     }
 
-    /// Withdraw LP tokens from pool
+    // Withdraw LP tokens from pool
     public entry fun withdraw<CoinType>(
         user_account: &signer,
         amount_out: u64
@@ -509,7 +512,23 @@ module MasterChefDeployer::MasterChef {
         });
     }
 
-    /// Update pool info
+    // Stake SUCKR coins to MC
+    public entry fun enter_staking(
+        user_account: &signer,
+        amount: u64
+    ) acquires MasterChefData, UserInfo, PoolInfo, Events {
+        deposit<SUCKR>(user_account, amount);
+    }
+
+    // Withdraw SUCKR coins from STAKING
+    public entry fun leave_staking(
+        user_account: &signer,
+        amount: u64
+    ) acquires MasterChefData, UserInfo, PoolInfo, Events {
+        withdraw<SUCKR>(user_account, amount);
+    }
+
+    // Update pool info
     fun update_pool<CoinType>() acquires MasterChefData, PoolInfo {
         assert!(exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_NOT_EXIST);
 
@@ -528,7 +547,7 @@ module MasterChefDeployer::MasterChef {
     }
 
 /// function list for private
-    /// Transfer pending reward token to user
+    // Transfer pending reward token to user
     fun settle_pending_reward<CoinType>(
         user_account: &signer
     ) acquires MasterChefData, UserInfo, PoolInfo {
@@ -558,7 +577,7 @@ module MasterChefDeployer::MasterChef {
         }
     }
 
-    /// Mint the reward token
+    // Mint the reward token
     fun mint_reward_token() acquires MasterChefData {
         let resource_account_signer = get_resource_account_signer();
         let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);

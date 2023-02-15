@@ -96,7 +96,7 @@ module MasterChefDeployer::MasterChef {
         amount: u64,
     }
 
-    public entry fun initialize(admin: &signer) {
+    public entry fun initialize(admin: &signer) acquires MasterChefData, LPInfo {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
         let (_, signer_cap) = account::create_resource_account(admin, x"30");
@@ -137,7 +137,7 @@ module MasterChefDeployer::MasterChef {
         });
 
         // SUCKR staking
-        add<SUCKR>(admin, 1000);
+        add<SUCKR>(admin, 1000, 0);
     }
 
 /// functions list for view info ///
