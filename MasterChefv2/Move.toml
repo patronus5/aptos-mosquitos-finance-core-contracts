@@ -7,5 +7,5 @@ AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir 
 MosquitoCoin = { local = "../MosquitoCoin" }
 
 [addresses]
-MasterChefDeployer = "0xf93e438a0dbb14753574201941279f1d6b63b8926c247d4d1260f95f718155cc"
-ResourceAccountDeployer = "0xff8b89aa3b4058c38ba0ee56212c4edf8c3a47edb712edc61dedc6fb95e466bb"
+MasterChefDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
+ResourceAccountDeployer = "0xe1996571b77b4fc6feeae1f426f124e68ff31bb30508562106479456f6ecaabd"

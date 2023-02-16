@@ -2,7 +2,6 @@
 module MasterChefDeployer::MasterChefTests {
     #[test_only]
     use std::signer;
-    // use std::type_info::{ Self, TypeInfo };
     #[test_only]
     use std::string::utf8;
     #[test_only]
@@ -20,6 +19,8 @@ module MasterChefDeployer::MasterChefTests {
 
     #[test_only]
     use MasterChefDeployer::MasterChef;
+    #[test_only]
+    use MasterChefDeployer::MosquitoCoin::{ Self };
 
     #[test_only]
     const INIT_FAUCET_COIN:u64 = 1000000000;
@@ -42,15 +43,18 @@ module MasterChefDeployer::MasterChefTests {
     #[test_only]
     public entry fun test_module_init(admin: &signer) {
         // timestamp::update_global_time_for_test(100);
+        genesis::setup();
+        create_account_for_test(signer::address_of(admin));
+        MosquitoCoin::initialize(admin);
         MasterChef::initialize(admin);
         let resource_account_address = MasterChef::get_resource_address();
         debug::print(&resource_account_address);
     }
 
     #[test_only]
-    public entry fun test_coin_init(admin: &signer, someone: &signer) {
-        genesis::setup();
-        create_account_for_test(signer::address_of(admin));
+    public entry fun test_coin_init(admin: &signer, someone: &signer, dev: &signer) {
+        // genesis::setup();
+        create_account_for_test(signer::address_of(dev));
         create_account_for_test(signer::address_of(someone));
         {
             let (burn_cap, freeze_cap, mint_cap) = coin::initialize<BTC>(
@@ -64,8 +68,8 @@ module MasterChefDeployer::MasterChefTests {
             let coins = coin::mint<BTC>(INIT_FAUCET_COIN, &mint_cap);
             coin::deposit(signer::address_of(someone), coins);
     
-            MasterChef::add<BTC>(admin, 30, 1, 20);
-            MasterChef::add<USDT>(admin, 50, 1, 15);
+            MasterChef::add<BTC>(admin, 30, 500);
+            MasterChef::add<USDT>(admin, 50, 15);
             move_to(admin, Caps<BTC> {
                 mint: mint_cap,
                 freeze: freeze_cap,
@@ -80,24 +84,20 @@ module MasterChefDeployer::MasterChefTests {
         MasterChef::set_admin_address(admin, signer::address_of(another));
     }
 
-    // #[test(admin = @MasterChefDeployer)]
-    // public entry fun test_add_pool(admin: &signer) {
-    //     test_module_init(admin);
-    //     MasterChef::add<USDT>(admin, 30);
-    // }
-
-    // #[test(user_account = @MasterChefDeployer)]
-    // public entry fun test_set_pool(user_account: signer) {
-    //     test_module_init(&user_account);
-    //     MasterChef::add<BTC>(&user_account, 30);
-    //     MasterChef::set<BTC>(&user_account, 50);
-    // }
-
-    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x11)]
-    public entry fun test_deposit_and_withdraw(admin: &signer, resource_account: &signer, someone: &signer) {
+    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x15, dev = @0x12)]
+    public entry fun test_deposit_and_withdraw(
+        admin: &signer,
+        resource_account: &signer,
+        someone: &signer,
+        dev: &signer,
+    ) {
         test_module_init(admin);
-        test_coin_init(admin, someone);
+        test_coin_init(admin, someone, dev);
 
+        coin::register<BTC>(resource_account);
+        MasterChef::enable_farm(admin);
+
+        // deposit
         let pre_user_balance = coin::balance<BTC>(signer::address_of(someone));
         debug::print(&pre_user_balance);
         MasterChef::deposit<BTC>(someone, 50);
@@ -105,27 +105,15 @@ module MasterChefDeployer::MasterChefTests {
         debug::print(&cur_user_balance);
         let btc_pool_balance = coin::balance<BTC>(signer::address_of(resource_account));
         debug::print(&btc_pool_balance);
-        let btc_pool_TC_balance = coin::balance<MasterChef::TestCoin>(signer::address_of(resource_account));
-        debug::print(&btc_pool_TC_balance);
 
-        MasterChef::withdraw<BTC>(someone, 27);
-        cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
+        // withdraw
+        MasterChef::emergency_withdraw<BTC>(someone);
+        let cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
         debug::print(&cur_user_balance);
-        btc_pool_balance = coin::balance<BTC>(signer::address_of(resource_account));
-        debug::print(&btc_pool_balance);
-        btc_pool_TC_balance = coin::balance<MasterChef::TestCoin>(signer::address_of(resource_account));
-        debug::print(&btc_pool_TC_balance);
-    }
 
-    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x11)]
-    public entry fun test_mint_reward_token(admin: &signer, resource_account: &signer, someone: &signer) {
-        test_module_init(admin);
-        test_coin_init(admin, someone);
-
-        let btc_pool_TC_balance = coin::balance<MasterChef::TestCoin>(signer::address_of(resource_account));
-        debug::print(&btc_pool_TC_balance);
-        MasterChef::mint_reward_token();
-        btc_pool_TC_balance = coin::balance<MasterChef::TestCoin>(signer::address_of(resource_account));
-        debug::print(&btc_pool_TC_balance);
+        // MasterChef::set_dev_address(admin, signer::address_of(dev));
+        // MasterChef::withdraw_dev_fee<BTC>(dev);
+        // let dev_balance = coin::balance<BTC>(signer::address_of(dev));
+        // debug::print(&dev_balance);
     }
 }
