@@ -8,6 +8,8 @@ module MasterChefDeployer::MasterChef {
     use aptos_framework::coin::{ Self, Coin };
     use aptos_framework::account::{ Self, SignerCapability };
 
+    // When new block is not generated yet
+    const ERR_WAIT_FOR_NEW_BLOCK: u64 = 100;
     // When already exists on account
     const ERR_POOL_ALREADY_EXIST: u64 = 101;
     // When not exists on account
@@ -52,7 +54,6 @@ module MasterChefDeployer::MasterChef {
     struct UserInfo<phantom CoinType> has key, copy, store {
         amount: u64,
         reward_debt: u128,
-        paid_reward_token_amount: u128,
     }
 
     // Store all admindata under masterchef
@@ -62,22 +63,20 @@ module MasterChefDeployer::MasterChef {
         dev_address: address,
         team_address: address,
         team_percent: u64,
-        pending_team_reward_token_amount: u64,
+        last_timestamp_team_withdraw: u64,
         marketing_address: address,
         marketing_percent: u64,
-        pending_marketing_reward_token_amount: u64,
+        last_timestamp_marketing_withdraw: u64,
         lottery_address: address,
         lottery_percent: u64,
-        pending_lottery_reward_token_amount: u64,
+        last_timestamp_lottery_withdraw: u64,
         burn_address: address,
         burn_percent: u64,
-        pending_burn_reward_token_amount: u64,
+        last_timestamp_burn_withdraw: u64,
         farming_percent: u64,
         total_alloc_point: u128,
         per_second_reward: u128,
         farm_enabled: bool,
-        last_mint_timestamp: u64,
-        treasury: Coin<SUCKR>,
     }
 
     struct Events has key {
@@ -99,33 +98,28 @@ module MasterChefDeployer::MasterChef {
     public entry fun initialize(admin: &signer) acquires MasterChefData, LPInfo {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
-        let (_, signer_cap) = account::create_resource_account(admin, x"30");
-        let resource_account_signer = account::create_signer_with_capability(&signer_cap);
+        let (resource_account_signer, signer_cap) = account::create_resource_account(admin, x"30");
         
-        // MosquitoCoin::mint_SUCKR(&resource_account_signer, INIT_SUPPLY);
-
         move_to(admin, MasterChefData {
             signer_cap: signer_cap,
             admin_address: admin_addr,
             dev_address: admin_addr,
             team_address: admin_addr,
             team_percent: 1,
-            pending_team_reward_token_amount: 0,
+            last_timestamp_team_withdraw: current_timestamp,
             marketing_address: admin_addr,
             marketing_percent: 9,
-            pending_marketing_reward_token_amount: 0,
+            last_timestamp_marketing_withdraw: current_timestamp,
             lottery_address: admin_addr,
             lottery_percent: 90,
-            pending_lottery_reward_token_amount: 0,
+            last_timestamp_lottery_withdraw: current_timestamp,
             burn_address: admin_addr,
             burn_percent: 100,
-            pending_burn_reward_token_amount: 0,
+            last_timestamp_burn_withdraw: current_timestamp,
             farming_percent: 800,
             total_alloc_point: 0,
             per_second_reward: 3333333,
-            farm_enabled: false,
-            last_mint_timestamp: current_timestamp,
-            treasury: coin::zero(),
+            farm_enabled: false
         });
         move_to(admin, LPInfo {
             lp_list: vector::empty(),
@@ -156,10 +150,10 @@ module MasterChefDeployer::MasterChef {
     // Get user deposit amount
     public fun get_user_info<CoinType>(
         user_addr: address
-    ): (u64, u128) acquires UserInfo {
+    ): (u64) acquires UserInfo {
         assert!(exists<UserInfo<CoinType>>(user_addr), ERR_USERINFO_NOT_EXIST);
         let user_info = borrow_global<UserInfo<CoinType>>(user_addr);
-        (user_info.amount, user_info.paid_reward_token_amount)
+        (user_info.amount)
     }
 
     // Get the pending reward token amount
@@ -170,14 +164,14 @@ module MasterChefDeployer::MasterChef {
 
         let user_info = borrow_global<UserInfo<CoinType>>(user_addr);
         let pool_info = borrow_global<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
-        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        let mc_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
         let current_timestamp = timestamp::now_seconds();
         let acc_reward_per_share = pool_info.acc_reward_per_share;
 
         if (current_timestamp > pool_info.last_reward_timestamp && pool_info.total_share > 0) {
             let multiplier = current_timestamp - pool_info.last_reward_timestamp;
-            let reward_amount = (multiplier as u128) * masterchef_data.per_second_reward * pool_info.alloc_point / masterchef_data.total_alloc_point;
-            reward_amount = reward_amount * (masterchef_data.farming_percent as u128) / (PERCENT_PRECISION as u128);
+            let reward_amount = (multiplier as u128) * mc_data.per_second_reward * pool_info.alloc_point / mc_data.total_alloc_point;
+            reward_amount = reward_amount * (mc_data.farming_percent as u128) / (PERCENT_PRECISION as u128);
             acc_reward_per_share = acc_reward_per_share + reward_amount * ACC_REWARD_PRECISION / pool_info.total_share;
         };
         (user_info.amount as u128) * acc_reward_per_share / ACC_REWARD_PRECISION - user_info.reward_debt
@@ -186,12 +180,11 @@ module MasterChefDeployer::MasterChef {
 /// functions list for only owner ///
     // Enable the farm
     public entry fun enable_farm(admin: &signer) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        assert!(masterchef_data.farm_enabled == false, ERR_FARM_ALREADY_STARTED);
-        let current_timestamp = timestamp::now_seconds();
-        masterchef_data.farm_enabled = true;
-        masterchef_data.last_mint_timestamp = current_timestamp;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        assert!(mc_data.farm_enabled == false, ERR_FARM_ALREADY_STARTED);
+        
+        mc_data.farm_enabled = true;
     }
 
     // Set admin address
@@ -199,9 +192,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         new_admin_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.admin_address = new_admin_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.admin_address = new_admin_address;
     }
 
     // Set dev address
@@ -209,9 +202,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         dev_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.dev_address = dev_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.dev_address = dev_address;
     }
 
     // Set team address
@@ -219,9 +212,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         team_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.team_address = team_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.team_address = team_address;
     }
 
     // Set market address
@@ -229,9 +222,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         marketing_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.marketing_address = marketing_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.marketing_address = marketing_address;
     }
 
     // Set lottery address
@@ -239,9 +232,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         lottery_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.lottery_address = lottery_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.lottery_address = lottery_address;
     }
 
     // Set burn address
@@ -249,9 +242,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         burn_address: address
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.burn_address = burn_address;
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.burn_address = burn_address;
     }
 
     // Set reward token amount per second
@@ -259,9 +252,9 @@ module MasterChefDeployer::MasterChef {
         admin: &signer,
         per_second_reward: u128
     ) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
-        masterchef_data.per_second_reward = if (MAX_REWARD_TOKEN_RATE > per_second_reward) {
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
+        mc_data.per_second_reward = if (MAX_REWARD_TOKEN_RATE > per_second_reward) {
             per_second_reward
         } else {
             MAX_REWARD_TOKEN_RATE
@@ -276,9 +269,9 @@ module MasterChefDeployer::MasterChef {
     ) acquires MasterChefData, LPInfo {
         let resource_account_signer = get_resource_account_signer();
         let existing_lp_info = borrow_global_mut<LPInfo>(DEPLOYER_ADDRESS);
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
 
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
         assert!(!exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_ALREADY_EXIST);
 
         let current_timestamp = timestamp::now_seconds();
@@ -287,7 +280,7 @@ module MasterChefDeployer::MasterChef {
         } else {
             MAX_DEPOSIT_FEE
         };
-        masterchef_data.total_alloc_point = masterchef_data.total_alloc_point + alloc_point;
+        mc_data.total_alloc_point = mc_data.total_alloc_point + alloc_point;
         move_to(&resource_account_signer, PoolInfo<CoinType> {
             fee: pool_fee,
             total_share: 0,
@@ -305,13 +298,13 @@ module MasterChefDeployer::MasterChef {
         alloc_point: u128,
         fee: u64,
     ) acquires MasterChefData, PoolInfo {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
 
-        assert!(signer::address_of(admin) == masterchef_data.admin_address, ERR_FORBIDDEN);
+        assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
         assert!(exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_NOT_EXIST);
 
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
-        masterchef_data.total_alloc_point = masterchef_data.total_alloc_point - pool_info.alloc_point + alloc_point;
+        mc_data.total_alloc_point = mc_data.total_alloc_point - pool_info.alloc_point + alloc_point;
         pool_info.alloc_point = alloc_point;
         pool_info.fee = if (MAX_DEPOSIT_FEE > fee) {
             fee
@@ -322,8 +315,8 @@ module MasterChefDeployer::MasterChef {
 
     // Withdraw dev fee
     public entry fun withdraw_dev_fee<CoinType>(dev_account: &signer) acquires MasterChefData, PoolInfo {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(dev_account) == masterchef_data.dev_address, ERR_FORBIDDEN);
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(signer::address_of(dev_account) == mc_data.dev_address, ERR_FORBIDDEN);
 
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let amount_out = coin::value(&pool_info.coin_reserve) - (pool_info.total_share as u64);
@@ -336,112 +329,133 @@ module MasterChefDeployer::MasterChef {
 
     // Withdraw the reward token for team
     public entry fun withdraw_for_team(team_account: &signer) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(team_account) == masterchef_data.team_address, ERR_FORBIDDEN);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        let team_addr = signer::address_of(team_account);
+        assert!(team_addr == mc_data.team_address, ERR_FORBIDDEN);
+        assert!(mc_data.last_timestamp_team_withdraw < current_timestamp, ERR_WAIT_FOR_NEW_BLOCK);
 
-        let cur_balance = coin::value(&mut masterchef_data.treasury);
-        let pending_amount = masterchef_data.pending_team_reward_token_amount;
-        if (pending_amount > cur_balance) {
-            pending_amount = cur_balance;
-        };
-        let coins_out = coin::extract(&mut masterchef_data.treasury, pending_amount);
-        if (!coin::is_account_registered<SUCKR>(signer::address_of(team_account))) {
+        let multiplier = ((current_timestamp - mc_data.last_timestamp_team_withdraw) as u128);
+        let pending_amount = multiplier * mc_data.per_second_reward * (mc_data.team_percent as u128) / (PERCENT_PRECISION as u128);
+        let coins_out = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, (pending_amount as u64));
+        if (!coin::is_account_registered<SUCKR>(team_addr)) {
             coin::register<SUCKR>(team_account);
         };
-        masterchef_data.pending_team_reward_token_amount = 0;
-        coin::deposit<SUCKR>(signer::address_of(team_account), coins_out);
+        mc_data.last_timestamp_team_withdraw = current_timestamp;
+        coin::deposit<SUCKR>(team_addr, coins_out);
     }
 
     // Withdraw the reward token for marketing
     public entry fun withdraw_for_marketing(marketing_account: &signer) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(marketing_account) == masterchef_data.marketing_address, ERR_FORBIDDEN);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        let marketing_addr = signer::address_of(marketing_account);
+        assert!(marketing_addr == mc_data.marketing_address, ERR_FORBIDDEN);
+        assert!(mc_data.last_timestamp_marketing_withdraw < current_timestamp, ERR_WAIT_FOR_NEW_BLOCK);
 
-        let cur_balance = coin::value(&mut masterchef_data.treasury);
-        let pending_amount = masterchef_data.pending_marketing_reward_token_amount;
-        if (pending_amount > cur_balance) {
-            pending_amount = cur_balance;
-        };
-        let coins_out = coin::extract(&mut masterchef_data.treasury, pending_amount);
-        if (!coin::is_account_registered<SUCKR>(signer::address_of(marketing_account))) {
+        let multiplier = ((current_timestamp - mc_data.last_timestamp_marketing_withdraw) as u128);
+        let pending_amount = multiplier * mc_data.per_second_reward * (mc_data.marketing_percent as u128) / (PERCENT_PRECISION as u128);
+        let coins_out = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, (pending_amount as u64));
+        if (!coin::is_account_registered<SUCKR>(marketing_addr)) {
             coin::register<SUCKR>(marketing_account);
         };
-        masterchef_data.pending_marketing_reward_token_amount = 0;
-        coin::deposit<SUCKR>(signer::address_of(marketing_account), coins_out);
+        mc_data.last_timestamp_marketing_withdraw = current_timestamp;
+        coin::deposit<SUCKR>(marketing_addr, coins_out);
     }
 
     // Withdraw the reward token for lottery
     public entry fun withdraw_for_lottery(lottery_account: &signer) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(lottery_account) == masterchef_data.lottery_address, ERR_FORBIDDEN);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        let lottery_addr = signer::address_of(lottery_account);
+        assert!(lottery_addr == mc_data.lottery_address, ERR_FORBIDDEN);
+        assert!(mc_data.last_timestamp_lottery_withdraw < current_timestamp, ERR_WAIT_FOR_NEW_BLOCK);
 
-        let cur_balance = coin::value(&mut masterchef_data.treasury);
-        let pending_amount = masterchef_data.pending_lottery_reward_token_amount;
-        if (pending_amount > cur_balance) {
-            pending_amount = cur_balance;
-        };
-        let coins_out = coin::extract(&mut masterchef_data.treasury, pending_amount);
-        if (!coin::is_account_registered<SUCKR>(signer::address_of(lottery_account))) {
+        let multiplier = ((current_timestamp - mc_data.last_timestamp_lottery_withdraw) as u128);
+        let pending_amount = multiplier * mc_data.per_second_reward * (mc_data.lottery_percent as u128) / (PERCENT_PRECISION as u128);
+        let coins_out = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, (pending_amount as u64));
+        if (!coin::is_account_registered<SUCKR>(lottery_addr)) {
             coin::register<SUCKR>(lottery_account);
         };
-        masterchef_data.pending_lottery_reward_token_amount = 0;
-        coin::deposit<SUCKR>(signer::address_of(lottery_account), coins_out);
+        mc_data.last_timestamp_lottery_withdraw = current_timestamp;
+        coin::deposit<SUCKR>(lottery_addr, coins_out);
     }
 
     // Withdraw the reward token for burn
     public entry fun withdraw_for_burn(burn_account: &signer) acquires MasterChefData {
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(signer::address_of(burn_account) == masterchef_data.burn_address, ERR_FORBIDDEN);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        let burn_addr = signer::address_of(burn_account);
+        assert!(burn_addr == mc_data.burn_address, ERR_FORBIDDEN);
+        assert!(mc_data.last_timestamp_burn_withdraw < current_timestamp, ERR_WAIT_FOR_NEW_BLOCK);
 
-        let cur_balance = coin::value(&mut masterchef_data.treasury);
-        let pending_amount = masterchef_data.pending_burn_reward_token_amount;
-        if (pending_amount > cur_balance) {
-            pending_amount = cur_balance;
-        };
-        let coins_out = coin::extract(&mut masterchef_data.treasury, pending_amount);
-        if (!coin::is_account_registered<SUCKR>(signer::address_of(burn_account))) {
+        let multiplier = ((current_timestamp - mc_data.last_timestamp_burn_withdraw) as u128);
+        let pending_amount = multiplier * mc_data.per_second_reward * (mc_data.burn_percent as u128) / (PERCENT_PRECISION as u128);
+        let coins_out = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, (pending_amount as u64));
+        if (!coin::is_account_registered<SUCKR>(burn_addr)) {
             coin::register<SUCKR>(burn_account);
         };
-        masterchef_data.pending_burn_reward_token_amount = 0;
-        coin::deposit<SUCKR>(signer::address_of(burn_account), coins_out);
+        mc_data.last_timestamp_burn_withdraw = current_timestamp;
+        coin::deposit<SUCKR>(burn_addr, coins_out);
     }
 
 /// functions list for every user ///
+    // Update pool info
+    fun update_pool<CoinType>() acquires MasterChefData, PoolInfo {
+        assert!(exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_NOT_EXIST);
+
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
+        let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
+        if (current_timestamp > pool_info.last_reward_timestamp) {
+            if (mc_data.total_alloc_point > 0 && pool_info.total_share > 0) {
+                let multiplier = ((current_timestamp - pool_info.last_reward_timestamp) as u128);
+                let total_reward_amount = multiplier * mc_data.per_second_reward * pool_info.alloc_point / mc_data.total_alloc_point;
+                let farm_reward_amount = total_reward_amount * (mc_data.farming_percent as u128) / (PERCENT_PRECISION as u128);
+                let newly_generated_SUCKR = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, (farm_reward_amount as u64));
+                coin::deposit(RESOURCE_ACCOUNT_ADDRESS, newly_generated_SUCKR);
+                pool_info.acc_reward_per_share = pool_info.acc_reward_per_share + farm_reward_amount * ACC_REWARD_PRECISION / pool_info.total_share;
+            };
+            pool_info.last_reward_timestamp = current_timestamp;
+        }
+    }
+
     // Deposit LP tokens to pool
     public entry fun deposit<CoinType>(
         user_account: &signer,
         amount: u64
     ) acquires MasterChefData, UserInfo, PoolInfo, Events {
         update_pool<CoinType>();
-        mint_reward_token();
-        settle_pending_reward<CoinType>(user_account);
 
-        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(mc_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
 
-        let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let user_addr = signer::address_of(user_account);
-        if (amount > 0) {
-            let coins_in = coin::withdraw<CoinType>(user_account, amount);
-            let amount_in = coin::value(&coins_in);
-            amount_in = amount_in - amount_in * pool_info.fee / PERCENT_PRECISION;
-            coin::merge(&mut pool_info.coin_reserve, coins_in);
-
-            if (!exists<UserInfo<CoinType>>(user_addr)) {
-                move_to(user_account, UserInfo<CoinType>{
-                    amount: amount_in,
-                    reward_debt: 0,
-                    paid_reward_token_amount: 0,
-                });
-            } else {
-                let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
-                user_info.amount = user_info.amount + amount_in;
+        let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
+        let amount_in = amount - amount * pool_info.fee / PERCENT_PRECISION;
+        if (exists<UserInfo<CoinType>>(user_addr)) {
+            let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
+            if (user_info.amount > 0) {
+                let pending = (((user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION - user_info.reward_debt) as u64);
+                safe_transfer_SUCKR(&resource_account_signer, user_addr, pending);
             };
-            pool_info.total_share = pool_info.total_share + (amount_in as u128);
+            user_info.amount = user_info.amount + amount_in;
+            user_info.reward_debt = (user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION;
+        } else {
+            move_to(user_account, UserInfo<CoinType> {
+                amount: amount_in,
+                reward_debt: (amount_in as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION
+            });
         };
-
-        let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
-        user_info.reward_debt = (user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION;
+        pool_info.total_share = pool_info.total_share + (amount_in as u128);
+        let coins_in = coin::withdraw<CoinType>(user_account, amount);
+        coin::merge(&mut pool_info.coin_reserve, coins_in);
 
         let events = borrow_global_mut<Events>(RESOURCE_ACCOUNT_ADDRESS);
         event::emit_event(&mut events.deposit_event, DepositEvent {
@@ -459,23 +473,23 @@ module MasterChefDeployer::MasterChef {
         assert!(exists<UserInfo<CoinType>>(user_addr), ERR_USERINFO_NOT_EXIST);
 
         update_pool<CoinType>();
-        mint_reward_token();
-        settle_pending_reward<CoinType>(user_account);
 
-        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
+        let resource_account_signer = get_resource_account_signer();
+        let mc_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(mc_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
 
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
         assert!(user_info.amount >= amount_out, ERR_INSUFFICIENT_BALANCE);
 
-        if (amount_out > 0) {
-            user_info.amount = user_info.amount - amount_out;
-            let coins_out = coin::extract(&mut pool_info.coin_reserve, amount_out);
-            coin::deposit<CoinType>(user_addr, coins_out);
-        };
+        let pending = (((user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION - user_info.reward_debt) as u64);
+        safe_transfer_SUCKR(&resource_account_signer, user_addr, pending);
+
+        user_info.amount = user_info.amount - amount_out;
         user_info.reward_debt = (user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION;
         pool_info.total_share = pool_info.total_share - (amount_out as u128);
+        let coins_out = coin::extract(&mut pool_info.coin_reserve, amount_out);
+        coin::deposit<CoinType>(user_addr, coins_out);
 
         let events = borrow_global_mut<Events>(RESOURCE_ACCOUNT_ADDRESS);
         event::emit_event(&mut events.withdraw_event, WithdrawEvent {
@@ -491,8 +505,8 @@ module MasterChefDeployer::MasterChef {
         let user_addr = signer::address_of(user_account);
         assert!(exists<UserInfo<CoinType>>(user_addr), ERR_USERINFO_NOT_EXIST);
 
-        let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
-        assert!(masterchef_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
+        let mc_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
+        assert!(mc_data.farm_enabled == true, ERR_FARM_NOT_STARTED);
         
         let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
         let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
@@ -528,69 +542,18 @@ module MasterChefDeployer::MasterChef {
         withdraw<SUCKR>(user_account, amount);
     }
 
-    // Update pool info
-    fun update_pool<CoinType>() acquires MasterChefData, PoolInfo {
-        assert!(exists<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS), ERR_POOL_NOT_EXIST);
-
-        let current_timestamp = timestamp::now_seconds();
-        let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
-        if (current_timestamp > pool_info.last_reward_timestamp) {
-            let masterchef_data = borrow_global<MasterChefData>(DEPLOYER_ADDRESS);
-            if (masterchef_data.total_alloc_point > 0 && pool_info.total_share > 0) {
-                let multiplier = current_timestamp - pool_info.last_reward_timestamp;
-                let reward_amount = (multiplier as u128) * masterchef_data.per_second_reward * pool_info.alloc_point / masterchef_data.total_alloc_point;
-                reward_amount = reward_amount * (masterchef_data.farming_percent as u128) / (PERCENT_PRECISION as u128);
-                pool_info.acc_reward_per_share = pool_info.acc_reward_per_share + reward_amount * ACC_REWARD_PRECISION / pool_info.total_share;
-            };
-            pool_info.last_reward_timestamp = current_timestamp;
-        }
-    }
-
 /// function list for private
-    // Transfer pending reward token to user
-    fun settle_pending_reward<CoinType>(
-        user_account: &signer
-    ) acquires MasterChefData, UserInfo, PoolInfo {
-        let user_addr = signer::address_of(user_account);
-        if (exists<UserInfo<CoinType>>(user_addr)) {
-            let user_info = borrow_global_mut<UserInfo<CoinType>>(user_addr);
-            if (user_info.amount > 0) {
-                let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-                let pool_info = borrow_global_mut<PoolInfo<CoinType>>(RESOURCE_ACCOUNT_ADDRESS);
-                let cur_balance = coin::value(&masterchef_data.treasury);
-                let pending_amount = (user_info.amount as u128) * pool_info.acc_reward_per_share / ACC_REWARD_PRECISION;
-
-                if (pending_amount > user_info.reward_debt) {
-                    pending_amount = pending_amount - user_info.reward_debt;
-                    if ((cur_balance as u128) < pending_amount) {
-                        pending_amount = (cur_balance as u128);
-                    };
-                    let coins_out = coin::extract(&mut masterchef_data.treasury, (pending_amount as u64));
-                    if (!coin::is_account_registered<SUCKR>(user_addr)) {
-                        coin::register<SUCKR>(user_account);
-                    };
-                    coin::deposit(user_addr, coins_out);
-                    user_info.paid_reward_token_amount = user_info.paid_reward_token_amount + pending_amount;
-                }
-                
-            }
-        }
-    }
-
-    // Mint the reward token
-    fun mint_reward_token() acquires MasterChefData {
-        let resource_account_signer = get_resource_account_signer();
-        let masterchef_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
-        let current_timestamp = timestamp::now_seconds();
-        let new_mint_amount = (masterchef_data.per_second_reward as u64) * (current_timestamp - masterchef_data.last_mint_timestamp);
-        
-        masterchef_data.pending_team_reward_token_amount = masterchef_data.pending_team_reward_token_amount + new_mint_amount * masterchef_data.team_percent / PERCENT_PRECISION;
-        masterchef_data.pending_burn_reward_token_amount = masterchef_data.pending_burn_reward_token_amount + new_mint_amount * masterchef_data.burn_percent / PERCENT_PRECISION;
-        masterchef_data.pending_lottery_reward_token_amount = masterchef_data.pending_lottery_reward_token_amount + new_mint_amount * masterchef_data.lottery_percent / PERCENT_PRECISION;
-        masterchef_data.pending_marketing_reward_token_amount = masterchef_data.pending_marketing_reward_token_amount + new_mint_amount * masterchef_data.marketing_percent / PERCENT_PRECISION;
-        masterchef_data.last_mint_timestamp = current_timestamp;
-        
-        let coins_out = MosquitoCoin::mint_farm_SUCKR(&resource_account_signer, new_mint_amount);
-        coin::merge(&mut masterchef_data.treasury, coins_out);
+    // Transfer SUCKR to user
+    fun safe_transfer_SUCKR(
+        resource_account_signer: &signer,
+        to: address,
+        amount: u64
+    ) {
+        let balance = coin::balance<SUCKR>(signer::address_of(resource_account_signer));
+        if (amount > balance) {
+            coin::transfer<SUCKR>(resource_account_signer, to, balance);
+        } else {
+            coin::transfer<SUCKR>(resource_account_signer, to, amount);
+        };
     }
 }
