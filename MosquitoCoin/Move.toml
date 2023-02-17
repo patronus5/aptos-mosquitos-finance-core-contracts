@@ -6,5 +6,5 @@ version = '1.0.0'
 AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "testnet" }
 
 [addresses]
-MasterChefDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
-ResourceAccountDeployer = "0xe1996571b77b4fc6feeae1f426f124e68ff31bb30508562106479456f6ecaabd"
+MosquitoCoinDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
+MosquitoCoinResourceAccount = "0xe1996571b77b4fc6feeae1f426f124e68ff31bb30508562106479456f6ecaabd"

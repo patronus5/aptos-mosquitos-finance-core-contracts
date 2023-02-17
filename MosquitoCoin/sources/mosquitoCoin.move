@@ -1,4 +1,4 @@
-module MasterChefDeployer::MosquitoCoin {
+module MosquitoCoinDeployer::MosquitoCoin {
     use std::signer;
     use std::event;
     use std::vector;
@@ -17,8 +17,8 @@ module MasterChefDeployer::MosquitoCoin {
     const INIT_SUPPLY: u64 = 17526666;
     const TOKEN_DECIMALS: u64 = 100000000;
 
-    const DEPLOYER_ADDRESS: address = @MasterChefDeployer;
-    const RESOURCE_ACCOUNT_ADDRESS: address = @ResourceAccountDeployer;
+    const DEPLOYER_ADDRESS: address = @MosquitoCoinDeployer;
+    const RESOURCE_ACCOUNT_ADDRESS: address = @MosquitoCoinResourceAccount;
 
     /// Reward coin structure
     struct SUCKR {}

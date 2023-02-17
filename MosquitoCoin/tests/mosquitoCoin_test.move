@@ -1,5 +1,5 @@
 #[test_only]
-module MasterChefDeployer::MosquitosCoinTests {
+module MosquitoCoinDeployer::MosquitosCoinTests {
     #[test_only]
     use std::signer;
     #[test_only]
@@ -14,7 +14,7 @@ module MasterChefDeployer::MosquitosCoinTests {
     };
 
     #[test_only]
-    use MasterChefDeployer::MosquitoCoin::{ Self, SUCKR };
+    use MosquitoCoinDeployer::MosquitoCoin::{ Self, SUCKR };
 
     #[test_only]
     const INIT_FAUCET_COIN:u64 = 23862;
@@ -24,7 +24,7 @@ module MasterChefDeployer::MosquitosCoinTests {
         MosquitoCoin::initialize(admin);
     }
 
-    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer)]
+    #[test(admin = @MosquitoCoinDeployer, resource_account = @MosquitoCoinResourceAccount)]
     public entry fun test_mint_coin(admin: &signer, resource_account: &signer) {
         genesis::setup();
         create_account_for_test(signer::address_of(admin));
@@ -43,7 +43,7 @@ module MasterChefDeployer::MosquitosCoinTests {
         debug::print(&cur_user_balance);
     }
 
-    #[test(admin = @MasterChefDeployer, airdrop_account = @0x12, marketing_account = @0x15)]
+    #[test(admin = @MosquitoCoinDeployer, airdrop_account = @0x12, marketing_account = @0x15)]
     public entry fun test_lock_coin(
         admin: &signer,
         airdrop_account: &signer,
