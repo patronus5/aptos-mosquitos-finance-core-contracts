@@ -18,9 +18,9 @@ module MasterChefDeployer::MasterChefTests {
     // use aptos_framework::account::{ Self, SignerCapability };
 
     #[test_only]
-    use MasterChefDeployer::MasterChef;
+    use MasterChefDeployer::MasterChefV1;
     #[test_only]
-    use MasterChefDeployer::MosquitoCoin::{ Self };
+    use MosquitoCoinDeployer::MosquitoCoin::{ Self };
 
     #[test_only]
     const INIT_FAUCET_COIN:u64 = 1000000000;
@@ -41,13 +41,14 @@ module MasterChefDeployer::MasterChefTests {
     }
 
     #[test_only]
-    public entry fun test_module_init(admin: &signer) {
+    public entry fun test_module_init(admin: &signer, coin_admin: &signer) {
         // timestamp::update_global_time_for_test(100);
         genesis::setup();
         create_account_for_test(signer::address_of(admin));
-        MosquitoCoin::initialize(admin);
-        MasterChef::initialize(admin);
-        let resource_account_address = MasterChef::get_resource_address();
+        create_account_for_test(signer::address_of(coin_admin));
+        MosquitoCoin::initialize(coin_admin);
+        MasterChefV1::initialize(admin);
+        let resource_account_address = MasterChefV1::get_resource_address();
         debug::print(&resource_account_address);
     }
 
@@ -68,8 +69,8 @@ module MasterChefDeployer::MasterChefTests {
             let coins = coin::mint<BTC>(INIT_FAUCET_COIN, &mint_cap);
             coin::deposit(signer::address_of(someone), coins);
     
-            MasterChef::add<BTC>(admin, 30, 500);
-            MasterChef::add<USDT>(admin, 50, 15);
+            MasterChefV1::add<BTC>(admin, 30, 500);
+            MasterChefV1::add<USDT>(admin, 50, 15);
             move_to(admin, Caps<BTC> {
                 mint: mint_cap,
                 freeze: freeze_cap,
@@ -78,36 +79,38 @@ module MasterChefDeployer::MasterChefTests {
         }
     }
 
-    #[test(admin = @MasterChefDeployer, another = @0x22)]
-    public entry fun test_set_admin_address(admin: &signer, another: &signer) {
-        test_module_init(admin);
-        MasterChef::set_admin_address(admin, signer::address_of(another));
+    #[test(admin = @MasterChefDeployer, coin_admin = @MosquitoCoinDeployer, another = @0x22)]
+    public entry fun test_set_admin_address(admin: &signer, coin_admin: &signer, another: &signer) {
+        test_module_init(admin, coin_admin);
+        MasterChefV1::set_admin_address(admin, signer::address_of(another));
     }
 
-    #[test(admin = @MasterChefDeployer, resource_account = @ResourceAccountDeployer, someone = @0x15, dev = @0x12)]
+    #[test(admin = @MasterChefDeployer, coin_admin = @MosquitoCoinDeployer, resource_account = @MasterChefResourceAccount, someone = @0x15, dev = @0x12)]
     public entry fun test_deposit_and_withdraw(
         admin: &signer,
+        coin_admin: &signer,
         resource_account: &signer,
         someone: &signer,
         dev: &signer,
     ) {
-        test_module_init(admin);
+        test_module_init(admin, coin_admin);
         test_coin_init(admin, someone, dev);
 
         coin::register<BTC>(resource_account);
-        MasterChef::enable_farm(admin);
+        MasterChefV1::enable_farm(admin);
 
         // deposit
         let pre_user_balance = coin::balance<BTC>(signer::address_of(someone));
         debug::print(&pre_user_balance);
-        MasterChef::deposit<BTC>(someone, 50);
-        let cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
+        MasterChefV1::deposit<BTC>(someone, 100);
+        // let cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
+        let cur_user_balance = MasterChefV1::get_user_info<BTC>(signer::address_of(someone));
         debug::print(&cur_user_balance);
         let btc_pool_balance = coin::balance<BTC>(signer::address_of(resource_account));
         debug::print(&btc_pool_balance);
 
         // withdraw
-        MasterChef::emergency_withdraw<BTC>(someone);
+        MasterChefV1::emergency_withdraw<BTC>(someone);
         let cur_user_balance = coin::balance<BTC>(signer::address_of(someone));
         debug::print(&cur_user_balance);
 
