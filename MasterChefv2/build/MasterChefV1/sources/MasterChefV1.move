@@ -95,7 +95,7 @@ module MasterChefDeployer::MasterChefV1 {
         amount: u64,
     }
 
-    public entry fun initialize(admin: &signer) acquires MasterChefData, LPInfo {
+    fun init_module(admin: &signer) acquires MasterChefData, LPInfo {
         let admin_addr = signer::address_of(admin);
         let current_timestamp = timestamp::now_seconds();
         let (resource_account_signer, signer_cap) = account::create_resource_account(admin, x"30");
@@ -118,7 +118,7 @@ module MasterChefDeployer::MasterChefV1 {
             last_timestamp_burn_withdraw: current_timestamp,
             farming_percent: 800,
             total_alloc_point: 0,
-            per_second_reward: 3333333,
+            per_second_reward: 33333333,
             farm_enabled: false
         });
         move_to(admin, LPInfo {
@@ -131,7 +131,7 @@ module MasterChefDeployer::MasterChefV1 {
         });
 
         // SUCKR staking
-        add<SUCKR>(admin, 1000, 0);
+        add<SUCKR>(admin, 150, 10);
     }
 
 /// functions list for view info ///
@@ -181,10 +181,15 @@ module MasterChefDeployer::MasterChefV1 {
     // Enable the farm
     public entry fun enable_farm(admin: &signer) acquires MasterChefData {
         let mc_data = borrow_global_mut<MasterChefData>(DEPLOYER_ADDRESS);
+        let current_timestamp = timestamp::now_seconds();
         assert!(signer::address_of(admin) == mc_data.admin_address, ERR_FORBIDDEN);
         assert!(mc_data.farm_enabled == false, ERR_FARM_ALREADY_STARTED);
         
         mc_data.farm_enabled = true;
+        mc_data.last_timestamp_team_withdraw = current_timestamp;
+        mc_data.last_timestamp_marketing_withdraw = current_timestamp;
+        mc_data.last_timestamp_lottery_withdraw = current_timestamp;
+        mc_data.last_timestamp_burn_withdraw = current_timestamp;
     }
 
     // Set admin address

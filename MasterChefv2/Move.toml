@@ -3,10 +3,10 @@ name = 'MasterChefV1'
 version = '1.0.0'
 
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "testnet" }
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "mainnet" }
 MosquitoCoin = { local = "../MosquitoCoin" }
 
 [addresses]
 MosquitoCoinDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
-MasterChefDeployer = "0x29bbed61d3a6625c2c0038e289ae937cfe3cb9ad5f42871078e96ed49a074dac"
-MasterChefResourceAccount = "0xb7c6a7f706c966691d28e6bb6fa235f217b2b9182a54f4905dec63bea111a308"
+MasterChefDeployer = "0x4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832"
+MasterChefResourceAccount = "0xe1996571b77b4fc6feeae1f426f124e68ff31bb30508562106479456f6ecaabd"

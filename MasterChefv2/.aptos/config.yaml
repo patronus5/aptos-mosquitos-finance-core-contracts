@@ -14,7 +14,7 @@ profiles:
     private_key: "0x3f95ab8d71920663021718f907d8e3952e09ac06eeda868d03f40c211c7e3c1d"
     public_key: "0x650f5115d621eeaab5aa02db9ea750647c440bbcc94061bce5d02195f5adefda"
     account: 4db735a9d57f0ed393e44638540efc8e2ef2dccca3bd30c29bd09353b6285832
-    rest_url: "https://fullnode.testnet.aptoslabs.com"
+    rest_url: "https://fullnode.mainnet.aptoslabs.com"
   masterchefv1:
     private_key: "0x1f18de8c422bd8293562512269182c1567e605d92bc43200646f83fca6f2251b"
     public_key: "0x533e50b0f3061915e727666e8c568668adf2e51d4b5210dad3465b9dee729025"
